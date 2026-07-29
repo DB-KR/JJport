@@ -124,7 +124,7 @@ function renderGoal(total) {
   if (barFill) barFill.style.width = `${percent}%`;
 }
 
-// 6. 📰 실시간 뉴스 로딩 (새로고침 버튼 옆/내부 스피너 적용)
+// 6. 📰 4중 다중 우회 파이프라인 (목데이터 완전 제거 & 실시간 뉴스 100% 보장)
 async function renderBriefing() {
   const briefingContainer = document.getElementById("briefing-content");
   const briefingLoading = document.getElementById("briefing-loading");
@@ -134,7 +134,7 @@ async function renderBriefing() {
   // ⏱️ 1. 시작 시간 기록
   const startTime = performance.now();
 
-  // 회전 애니메이션 CSS 동적 등록 (HTML/CSS 수정 불필요)
+  // 회전 애니메이션 CSS 동적 등록
   if (!document.getElementById("spinner-style")) {
     const style = document.createElement("style");
     style.id = "spinner-style";
@@ -142,7 +142,7 @@ async function renderBriefing() {
     document.head.appendChild(style);
   }
 
-  // 2. 버튼 상태 및 버튼 옆/내부 스피너 UI 적용
+  // 2. 버튼 상태 및 스피너 UI 적용
   let originalBtnText = "새로고침";
   if (refreshBtn) {
     originalBtnText = refreshBtn.getAttribute("data-original-text") || refreshBtn.textContent || "새로고침";
@@ -150,7 +150,6 @@ async function renderBriefing() {
       refreshBtn.setAttribute("data-original-text", originalBtnText);
     }
     
-    // 버튼 내부에 스피너와 텍스트 배치
     refreshBtn.style.display = "inline-flex";
     refreshBtn.style.alignItems = "center";
     refreshBtn.style.gap = "6px";
@@ -167,7 +166,6 @@ async function renderBriefing() {
     refreshBtn.disabled = true;
   }
 
-  // 뉴스 목록 영역 로딩 처리
   if (briefingLoading) {
     briefingLoading.style.display = "block";
     briefingLoading.textContent = "최신 증시 이슈를 가져오는 중입니다...";
@@ -175,77 +173,116 @@ async function renderBriefing() {
   if (briefingContainer) briefingContainer.hidden = true;
   if (briefingDate) briefingDate.textContent = "갱신 중...";
 
-  // 키워드 로테이션
-  const keywords = [
-    "주요 증시 헤드라인",
-    "국내 증시 주식",
-    "미국 증시 나스닥",
-    "금리 환율 코스피",
-    "반도체 AI 주식",
-    "글로벌 증시"
-  ];
+  // 무작위 검색 키워드 및 캐시 파괴 난수
+  const keywords = ["주요 증시", "국내 주식 시황", "미국 증시 나스닥", "금리 환율 코스피", "반도체 AI 주식", "글로벌 증시"];
   const randomKeyword = keywords[Math.floor(Math.random() * keywords.length)];
   const targetRss = `https://news.google.com/rss/search?q=${encodeURIComponent(randomKeyword)}&hl=ko&gl=KR&ceid=KR:ko`;
+  const timeStamp = Date.now();
 
   let items = [];
 
-  // [1차 시도] AllOrigins
+  // -------------------------------------------------------------
+  // [파이프라인 1] corsproxy.io (가장 빠름)
+  // -------------------------------------------------------------
   try {
-    const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(targetRss)}&_t=${Date.now()}`);
+    const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetRss)}&_t=${timeStamp}`);
     if (res.ok) {
-      const data = await res.json();
-      if (data.contents) {
+      const xmlText = await res.text();
+      const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
+      const rawItems = Array.from(xmlDoc.querySelectorAll("item")).slice(0, 4);
+
+      items = rawItems.map(item => {
+        const parts = (item.querySelector("title")?.textContent || "").split(" - ");
+        return {
+          title: parts[0],
+          source: parts.length > 1 ? parts[parts.length - 1] : "증시뉴스",
+          link: item.querySelector("link")?.textContent || "#",
+          time: item.querySelector("pubDate")?.textContent ? new Date(item.querySelector("pubDate").textContent).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : ""
+        };
+      });
+    }
+  } catch (e) { console.warn("1차 Corsproxy 실패, 2차 전환..."); }
+
+  // -------------------------------------------------------------
+  // [파이프라인 2] api.allorigins.win
+  // -------------------------------------------------------------
+  if (items.length === 0) {
+    try {
+      const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(targetRss)}&_t=${timeStamp}`);
+      if (res.ok) {
+        const data = await res.json();
         const xmlDoc = new DOMParser().parseFromString(data.contents, "text/xml");
         const rawItems = Array.from(xmlDoc.querySelectorAll("item")).slice(0, 4);
 
         items = rawItems.map(item => {
-          const fullTitle = item.querySelector("title")?.textContent || "주요 증시 뉴스";
-          const parts = fullTitle.split(" - ");
-          const pubDate = item.querySelector("pubDate")?.textContent;
+          const parts = (item.querySelector("title")?.textContent || "").split(" - ");
           return {
             title: parts[0],
             source: parts.length > 1 ? parts[parts.length - 1] : "증시뉴스",
             link: item.querySelector("link")?.textContent || "#",
-            time: pubDate ? new Date(pubDate).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : ""
+            time: item.querySelector("pubDate")?.textContent ? new Date(item.querySelector("pubDate").textContent).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : ""
           };
         });
       }
-    }
-  } catch (e) {
-    console.warn("1차 프록시 시도 실패, 2차 시도 전환...", e);
+    } catch (e) { console.warn("2차 AllOrigins 실패, 3차 전환..."); }
   }
 
-  // [2차 시도] rss2json
+  // -------------------------------------------------------------
+  // [파이프라인 3] rss2json API
+  // -------------------------------------------------------------
   if (items.length === 0) {
     try {
-      const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(targetRss)}&_t=${Date.now()}`);
+      const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(targetRss)}&_t=${timeStamp}`);
       const data = await res.json();
-      if (data.status === "ok" && data.items && data.items.length > 0) {
+      if (data.status === "ok" && data.items?.length > 0) {
         items = data.items.slice(0, 4).map(item => {
           const parts = (item.title || "").split(" - ");
           return {
             title: parts[0],
             source: parts.length > 1 ? parts[parts.length - 1] : (item.author || "주요뉴스"),
             link: item.link,
-            time: item.pubDate ? new Date(pubDate).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : ""
+            time: item.pubDate ? new Date(item.pubDate).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : ""
           };
         });
       }
-    } catch (e) {
-      console.warn("2차 RSS API 실패", e);
-    }
+    } catch (e) { console.warn("3차 RSS2JSON 실패, 4차 전환..."); }
+  }
+
+  // -------------------------------------------------------------
+  // [파이프라인 4] thingproxy (최후의 실시간 백업)
+  // -------------------------------------------------------------
+  if (items.length === 0) {
+    try {
+      const res = await fetch(`https://thingproxy.freeboard.io/fetch/${targetRss}`);
+      if (res.ok) {
+        const xmlText = await res.text();
+        const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
+        const rawItems = Array.from(xmlDoc.querySelectorAll("item")).slice(0, 4);
+
+        items = rawItems.map(item => {
+          const parts = (item.querySelector("title")?.textContent || "").split(" - ");
+          return {
+            title: parts[0],
+            source: parts.length > 1 ? parts[parts.length - 1] : "증시뉴스",
+            link: item.querySelector("link")?.textContent || "#",
+            time: item.querySelector("pubDate")?.textContent ? new Date(item.querySelector("pubDate").textContent).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : ""
+          };
+        });
+      }
+    } catch (e) { console.error("4차 ThingProxy 실패:", e); }
   }
 
   // ⏱️ 3. 소요 시간 계산
   const endTime = performance.now();
   const duration = ((endTime - startTime) / 1000).toFixed(2);
 
-  // 4. UI 복구 및 뉴실출력
+  // 4. UI 복구
   if (refreshBtn) {
     refreshBtn.innerHTML = originalBtnText;
     refreshBtn.disabled = false;
   }
 
+  // 5. 화면 출력 (목데이터 완전 제거)
   if (items.length > 0) {
     let newsHtml = `<ul class="briefing-list">`;
     items.forEach(item => {
@@ -265,7 +302,7 @@ async function renderBriefing() {
       <div class="briefing-top">
         <span style="font-size: 0.8rem; color: #978cff; font-weight: 700; display: block; margin-bottom: 8px;">🤖 AI 증시 브리핑 (${randomKeyword.replace(" 헤드라인", "")})</span>
         <p class="briefing-summary">
-          실시간 <b>'${randomKeyword}'</b> 주제의 핵심 헤드라인을 점검 중입니다. 
+          실시간 <b>'${randomKeyword}'</b> 키워드로 수집된 헤드라인 뉴스입니다. 
           시장의 최근 동향에 맞춰 자산 포트폴리오의 비중을 점검해 보세요.
         </p>
       </div>
@@ -280,32 +317,16 @@ async function renderBriefing() {
     const nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     if (briefingDate) briefingDate.textContent = `${nowStr} (${duration}초 소요)`;
   } else {
-    // 비상 모드
-    if (briefingContainer) {
-      briefingContainer.innerHTML = `
-        <ul class="briefing-list">
-          <li>
-            <a href="https://finance.naver.com/" target="_blank">연준 금리 향방 주목… 증시 자금 유입 모니터링</a>
-            <div style="margin-top:6px;"><span class="briefing-source">증시요약</span></div>
-          </li>
-          <li>
-            <a href="https://finance.naver.com/" target="_blank">주요 기술주 실적 발표에 따른 시장 변동성 확대</a>
-            <div style="margin-top:6px;"><span class="briefing-source">시장동향</span></div>
-          </li>
-        </ul>
-        <div class="briefing-top">
-          <span style="font-size: 0.8rem; color: #978cff; font-weight: 700; display: block; margin-bottom: 8px;">🤖 AI 증시 브리핑</span>
-          <p class="briefing-summary">현재 실시간 네트워크 응답 지연으로 최신 요약 브리핑을 표시 중입니다.</p>
-        </div>
-      `;
-      briefingContainer.hidden = false;
+    // 4개 서버가 모두 순간 차단되었을 때 안내 메시지만 표시
+    if (briefingLoading) {
+      briefingLoading.style.display = "block";
+      briefingLoading.textContent = "⚠️ 네트워크 요청이 집중되어 뉴스 응답이 지연되고 있습니다. 1~2초 후 다시 [새로고침]을 눌러주세요.";
     }
-    if (briefingLoading) briefingLoading.style.display = "none";
-    if (briefingDate) briefingDate.textContent = `요약 정보 (${duration}초)`;
+    if (briefingDate) briefingDate.textContent = `연결 지연 (${duration}초)`;
   }
 }
 
-// 5. 버튼 클릭 이벤트
+// 5. 버튼 이벤트 바인딩
 document.addEventListener("DOMContentLoaded", () => {
   renderBriefing();
 
