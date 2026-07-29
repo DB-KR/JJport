@@ -32,6 +32,31 @@
       <main>
         <!-- 1. 자산 개요 -->
         <section id="overview" class="hero-grid" aria-label="포트폴리오 요약">
+          <article class="card goal-card" style="grid-column: 1 / -1;">
+            <div class="goal-header">
+              <div>
+                <p class="eyebrow">GOAL TRACKER</p>
+                <h3 style="margin: 0; font-size: 1.1rem; color: #fff;">목표 자산 달성률</h3>
+              </div>
+              <div class="goal-input-wrap">
+                <label for="target-amount" style="font-size: 0.85rem; color: #94a3b8;">목표 금액</label>
+                <div class="goal-input-box">
+                  <input id="target-amount" type="text" inputmode="numeric" value="2,000,000,000" />
+                  <small>원</small>
+                </div>
+              </div>
+            </div>
+    
+    <div class="goal-progress-wrap">
+      <div class="goal-stats">
+        <span class="goal-percent" id="goal-percent-text">0.0%</span>
+        <span class="goal-remaining" id="goal-remaining-text">목표까지 ₩0 남음</span>
+      </div>
+      <div class="goal-bar-bg">
+        <div class="goal-bar-fill" id="goal-bar-fill" style="width: 0%;"></div>
+      </div>
+    </div>
+  </article>
           <article class="card total-card">
             <p class="card-label">순자산</p>
             <div class="value-row"><strong id="net-worth">₩0</strong><span class="trend neutral" id="net-trend">—</span></div>
