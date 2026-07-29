@@ -176,3 +176,159 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 });
+
+// =========================================================
+// 📈 투자 시뮬레이터 (배당 & S&P 500) 완벽 연동 로직
+// =========================================================
+
+// 1. 모든 문자열에서 콤마(,) 제거 후 안전하게 숫자로 변환하는 함수
+function parseNumber(val) {
+  if (!val) return 0;
+  // 콤마 제거 및 공백 제거
+  const cleanVal = String(val).replace(/,/g, "").trim();
+  const num = parseFloat(cleanVal);
+  return isNaN(num) ? 0 : num;
+}
+
+// 2. 숫자를 한국 원화 형식(₩1,234,567)으로 포맷팅
+function formatKRW(num) {
+  return "₩" + Math.round(num).toLocaleString("ko-KR");
+}
+
+// ---------------------------------------------------------
+// 💰 [좌측] 배당 시뮬레이터 계산
+// ---------------------------------------------------------
+function calculateDividendSim() {
+  const inputs = document.querySelectorAll('.simulator-box, div'); // 영역 탐색
+  
+  // HTML input 요소 수집 (placeholder 또는 입력된 순서 기준 범용 매핑)
+  const allInputs = Array.from(document.querySelectorAll('input'));
+  
+  // 배당 시뮬레이터 쪽 input들
+  const initAssetInput = allInputs[0]; // 초기 투자금
+  const monthlyAddInput = allInputs[1]; // 월 추가 투자
+  const yieldRateInput = allInputs[2]; // 연 배당수익률
+  const periodInput = allInputs[3];    // 투자 기간
+  const reinvestCheckbox = document.querySelector('input[type="checkbox"]'); // 배당 재투자 여부
+
+  if (!initAssetInput || !monthlyAddInput || !yieldRateInput || !periodInput) return;
+
+  const initAsset = parseNumber(initAssetInput.value);
+  const monthlyAdd = parseNumber(monthlyAddInput.value);
+  const yieldRate = parseNumber(yieldRateInput.value) / 100; // % -> 소수점
+  const years = parseNumber(periodInput.value);
+  const isReinvest = reinvestCheckbox ? reinvestCheckbox.checked : true;
+
+  let totalAsset = initAsset;
+  let totalDividendAccumulated = 0;
+
+  const monthlyYield = yieldRate / 12; // 월 배당률
+
+  // 월별 복리/단리 계산
+  for (let m = 1; m <= years * 12; m++) {
+    // 월 배당금 발생
+    const currentMonthlyDiv = totalAsset * monthlyYield;
+    totalDividendAccumulated += currentMonthlyDiv;
+
+    // 배당 재투자 여부에 따라 자산 증가
+    if (isReinvest) {
+      totalAsset += currentMonthlyDiv;
+    }
+
+    // 월 추가 적립금 투입
+    totalAsset += monthlyAdd;
+  }
+
+  // 결과 출력 영역 찾기 (₩0이라고 적힌 요소들)
+  const divResults = Array.from(document.querySelectorAll('div, span, p')).filter(el => 
+    el.textContent.includes('₩') || el.id?.includes('result') || el.className?.includes('asset')
+  );
+
+  // 화면 바인딩 (배당 시뮬레이터 예상 자산 & 누적 배당금)
+  const divBox = initAssetInput.closest('div[class*="box"]') || initAssetInput.parentElement.parentElement;
+  if (divBox) {
+    const outputs = divBox.querySelectorAll('h3, h4, .value, div[style*="font"], p');
+    // textContent에 ₩가 있는 엘리먼트 순서대로 업데이트
+    const targets = Array.from(divBox.querySelectorAll('*')).filter(el => el.children.length === 0 && el.textContent.includes('₩'));
+    if (targets.length >= 2) {
+      targets[0].textContent = formatKRW(totalAsset);
+      targets[1].textContent = formatKRW(totalDividendAccumulated);
+    }
+  }
+}
+
+// ---------------------------------------------------------
+// 🇺🇸 [우측] S&P 500 시뮬레이터 계산
+// ---------------------------------------------------------
+function calculateSp500Sim() {
+  const allInputs = Array.from(document.querySelectorAll('input'));
+  
+  // S&P 500 쪽 input들 (index 4 ~ 8)
+  const initAssetUsdInput = allInputs[4];  // 초기 투자금 (USD)
+  const monthlyAddUsdInput = allInputs[5]; // 월 추가 투자 (USD)
+  const exchangeRateInput = allInputs[6];  // 적용 환율 (원/USD)
+  const returnRateInput = allInputs[7];   // 연 수익률 가정 (%)
+  const periodInput = allInputs[8];       // 투자 기간 (년)
+
+  if (!initAssetUsdInput || !monthlyAddUsdInput || !exchangeRateInput || !returnRateInput || !periodInput) return;
+
+  const initAssetUsd = parseNumber(initAssetUsdInput.value);
+  const monthlyAddUsd = parseNumber(monthlyAddUsdInput.value);
+  const exchangeRate = parseNumber(exchangeRateInput.value);
+  const annualReturn = parseNumber(returnRateInput.value) / 100;
+  const years = parseNumber(periodInput.value);
+
+  const monthlyReturn = annualReturn / 12; // 월 수익률
+
+  let totalAssetUsd = initAssetUsd;
+  let totalDepositedUsd = initAssetUsd + (monthlyAddUsd * years * 12);
+
+  // 월별 적립식 복리 계산
+  for (let m = 1; m <= years * 12; m++) {
+    totalAssetUsd = totalAssetUsd * (1 + monthlyReturn) + monthlyAddUsd;
+  }
+
+  // 원화 환산
+  const totalAssetKrw = totalAssetUsd * exchangeRate;
+  const totalDepositedKrw = totalDepositedUsd * exchangeRate;
+
+  // 화면 바인딩 (S&P 500 예상 자산 & 총 납입금)
+  const spBox = initAssetUsdInput.closest('div[class*="box"]') || initAssetUsdInput.parentElement.parentElement;
+  if (spBox) {
+    const targets = Array.from(spBox.querySelectorAll('*')).filter(el => el.children.length === 0 && el.textContent.includes('₩'));
+    if (targets.length >= 2) {
+      targets[0].textContent = formatKRW(totalAssetKrw);
+      targets[1].textContent = formatKRW(totalDepositedKrw);
+    }
+  }
+}
+
+// ---------------------------------------------------------
+// 🔄 실시간 통합 계산 실행 및 이벤트 바인딩
+// ---------------------------------------------------------
+function runAllSimulators() {
+  try {
+    calculateDividendSim();
+    calculateSp500Sim();
+  } catch (e) {
+    console.error("시뮬레이터 계산 중 오류:", e);
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  // 1. 처음 페이지 열릴 때 자동 1회 계산
+  setTimeout(runAllSimulators, 300);
+
+  // 2. 입력창의 값이 바뀔 때마다 (타이핑/체크박스 변경 시) 실시간 자동 재계산
+  document.addEventListener("input", (e) => {
+    if (e.target.tagName === "INPUT") {
+      runAllSimulators();
+    }
+  });
+
+  document.addEventListener("change", (e) => {
+    if (e.target.tagName === "INPUT") {
+      runAllSimulators();
+    }
+  });
+});
