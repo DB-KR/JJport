@@ -5,8 +5,12 @@
   // --- 1. 자산 관리 코어 (Core Portfolio Storage & Rendering) ---
   const STORE = "portfolio-dashboard-v1";
   let holdings = JSON.parse(localStorage.getItem(STORE) || "[]");
+  
+  // 통화 및 숫자 포맷터 (3자리마다 콤마 적용)
   const won = new Intl.NumberFormat("ko-KR", { style: "currency", currency: "KRW", maximumFractionDigits: 0 });
   const format = value => won.format(value || 0);
+  const numFormat = value => (Number(value) || 0).toLocaleString("ko-KR"); // 순수 숫자 3자리 콤마 헬퍼
+
   const colors = ["#978cff", "#55dfb2", "#ffb86b", "#5bbcff", "#ed8cc5", "#d5cf79"];
   const THIRTY_MEAN_NET_WORTH = 221580000;
   const THIRTY_LOG_STDDEV = 0.95;
@@ -109,7 +113,7 @@
         const r = itemCost ? (value - itemCost) / itemCost * 100 : 0;
         return `<tr>
           <td><div class="asset-name"><span class="asset-badge">${h.symbol.slice(0,3)}</span><span>${escapeHTML(h.name)}<small class="symbol">${escapeHTML(h.symbol)} · ${h.category}</small></span></div></td>
-          <td class="money">${h.quantity.toLocaleString()}</td>
+          <td class="money">${numFormat(h.quantity)}</td>
           <td class="money">${format(h.avgPrice)}</td>
           <td class="money">${format(h.currentPrice)}</td>
           <td class="money">${format(value)}</td>
@@ -122,7 +126,7 @@
     const emptyElem = document.querySelector("#empty-state");
     if (emptyElem) emptyElem.hidden = holdings.length > 0;
     const countElem = document.querySelector("#asset-count");
-    if (countElem) countElem.textContent = holdings.length;
+    if (countElem) countElem.textContent = numFormat(holdings.length);
 
     renderAllocation(total);
   }
@@ -164,7 +168,6 @@
     if (content) content.hidden = true;
 
     try {
-      // 캐시 방지를 위해 타임스탬프(?t=...) 파라미터 추가
       const response = await fetch(`daily-briefing.json?t=${Date.now()}`);
       if (!response.ok) throw new Error("No briefing yet");
       showBriefing(await response.json());
@@ -178,10 +181,10 @@
   const shortCurrency = value => value >= 100000000 ? `₩${(value / 100000000).toFixed(value >= 1000000000 ? 1 : 2)}억` : won.format(value);
 
   function drawChart(target, values, label) {
-    if (!target) return;
+    if (!target || !values.length) return;
     const width = 520, height = 165, left = 12, right = 8, top = 12, bottom = 25;
-    const max = Math.max(...values, 1), usableW = width - left - right, usableH = height - top - bottom;
-    const point = (value, index) => [left + usableW * index / Math.max(values.length - 1, 1), top + usableH * (1 - value / max)];
+    const max = Math.max(...values.map(v => isNaN(v) ? 0 : v), 1), usableW = width - left - right, usableH = height - top - bottom;
+    const point = (value, index) => [left + usableW * index / Math.max(values.length - 1, 1), top + usableH * (1 - (value || 0) / max)];
     const coords = values.map(point), line = coords.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
     const area = `${line} L${coords.at(-1)[0].toFixed(1)},${top + usableH} L${left},${top + usableH} Z`;
     const grid = [0, .5, 1].map(ratio => { const y = top + usableH * (1 - ratio); return `<line class="sim-gridline" x1="${left}" y1="${y}" x2="${width-right}" y2="${y}"/>`; }).join("");
@@ -221,7 +224,7 @@
     if (document.getElementById("sp-total")) document.getElementById("sp-total").textContent = shortCurrency(balance * exchangeRate);
     if (document.getElementById("sp-contribution")) document.getElementById("sp-contribution").textContent = shortCurrency(contributions * exchangeRate);
     if (document.getElementById("sp-caption")) {
-      document.getElementById("sp-caption").innerHTML = `적용 환율 <b>${exchangeRate.toLocaleString()}원/USD</b> · 예상 수익 ${gains >= 0 ? "+" : ""}<b>${won.format(gains * exchangeRate)}</b> · $${balance.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+      document.getElementById("sp-caption").innerHTML = `적용 환율 <b>${numFormat(exchangeRate)}원/USD</b> · 예상 수익 ${gains >= 0 ? "+" : ""}<b>${won.format(gains * exchangeRate)}</b> · $${numFormat(Math.round(balance))}`;
     }
     drawChart(document.getElementById("sp-chart"), series.map(value => value * exchangeRate), "S&P 500 시뮬레이터");
   }
@@ -244,6 +247,16 @@
     if (emptyAddBtn) emptyAddBtn.onclick = openModal;
     if (closeModalBtn) closeModalBtn.onclick = () => modal.close();
     if (cancelModalBtn) cancelModalBtn.onclick = () => modal.close();
+
+    // 모달 바깥 배경 클릭 시 닫기
+    if (modal) {
+      modal.addEventListener("click", (e) => {
+        const rect = modal.getBoundingClientRect();
+        const isInDialog = (rect.top <= e.clientY && e.clientY <= rect.top + rect.height &&
+                            rect.left <= e.clientX && e.clientX <= rect.left + rect.width);
+        if (!isInDialog) modal.close();
+      });
+    }
 
     // 자산 추가 폼 제출
     const form = document.querySelector("#asset-form");
@@ -270,7 +283,9 @@
     const holdingsBody = document.querySelector("#holdings-body");
     if (holdingsBody) {
       holdingsBody.addEventListener("click", event => {
-        const index = event.target.dataset.index;
+        const btn = event.target.closest(".delete-button");
+        if (!btn) return;
+        const index = btn.dataset.index;
         if (index !== undefined) {
           holdings.splice(Number(index), 1);
           persist();
@@ -284,14 +299,16 @@
     if (downloadBtn) {
       downloadBtn.onclick = () => {
         const file = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), holdings }, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(file);
         const link = document.createElement("a");
-        link.href = URL.revokeObjectURL ? URL.createObjectURL(file) : "#";
+        link.href = url;
         link.download = "portfolio-backup.json";
         link.click();
+        URL.revokeObjectURL(url);
       };
     }
 
-    // 현 시점에서 불러오기 버튼 클릭 이벤트 (daily-briefing.json 즉시 재로드)
+    // 현 시점에서 불러오기 버튼
     const refreshBtn = document.querySelector("#refresh-briefing");
     if (refreshBtn) {
       refreshBtn.addEventListener("click", () => {
@@ -313,7 +330,7 @@
     renderDividend();
     renderSp500();
     
-    // --- 스크롤 및 메뉴 클릭 시 자동 하이라이트(Active) 스크립트 ---
+    // 스크롤 시 자동 메뉴 하이라이트
     const navLinks = document.querySelectorAll(".nav-link");
     const sections = document.querySelectorAll("main > section[id]");
 
