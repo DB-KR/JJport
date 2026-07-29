@@ -124,52 +124,85 @@ function renderGoal(total) {
   if (barFill) barFill.style.width = `${percent}%`;
 }
 
-// 6. 📰 뉴스 브리핑 로직 (복구된 뉴스 불러오기)
+// 6. 📰 실시간 뉴스 브리핑 로직 (구글 뉴스 RSS 실시간 연동)
 async function renderBriefing() {
   const briefingContainer = document.getElementById("briefing-content");
   if (!briefingContainer) return;
 
-  // 기본 더미/샘플 뉴스 데이터 (네트워크 상황이나 RSS 호출 실패 시 대비)
-  const defaultNews = [
-    {
-      title: "연준 금리 향방 주목… 기술주 중심으로 증시 변동성 확대",
-      summary: "글로벌 금융시장이 중앙은행의 통화정책 발표를 앞두고 관망세를 보이고 있습니다.",
-      source: "금융뉴스"
-    },
-    {
-      title: "S&P 500 및 나스닥, 연초 대비 견조한 상승 흐름 유지",
-      summary: "주요 기업들의 실적 호조에 힘입어 주요 지수가 연일 고점을 모색하고 있습니다.",
-      source: "증권일보"
-    }
-  ];
+  // 로딩 표시
+  briefingContainer.innerHTML = `
+    <div style="grid-column: 1 / -1; padding: 30px; text-align: center; color: #94a3b8;">
+      🔄 최신 금융/증시 뉴스를 불러오는 중입니다...
+    </div>
+  `;
 
   try {
-    // 뉴스 목록 UI 작성
+    // 실시간 한국 주식/증시 뉴스 RSS (CORS 우회 우회 프록시 사용)
+    const rssUrl = encodeURIComponent("https://news.google.com/rss/search?q=주식+증시+금리+경제&hl=ko&gl=KR&ceid=KR:ko");
+    const response = await fetch(`https://api.allorigins.win/get?url=${rssUrl}`);
+    const data = await response.json();
+
+    if (!data.contents) throw new Error("데이터를 가져오지 못했습니다.");
+
+    // XML 파싱
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(data.contents, "text/xml");
+    const items = Array.from(xmlDoc.querySelectorAll("item")).slice(0, 4); // 최신 뉴스 4개 가져오기
+
+    if (items.length === 0) throw new Error("뉴스 항목이 없습니다.");
+
+    // 뉴스 카드 생성
     let newsHtml = `<ul class="briefing-list">`;
-    defaultNews.forEach((news) => {
+    items.forEach((item) => {
+      const title = item.querySelector("title")?.textContent || "제목 없음";
+      const link = item.querySelector("link")?.textContent || "#";
+      const pubDateStr = item.querySelector("pubDate")?.textContent || "";
+      const source = item.querySelector("source")?.textContent || "실시간 뉴스";
+      
+      // 구글 뉴스의 경우 "제목 - 언론사명" 형식인 경우가 많아 분리
+      const titleParts = title.split(" - ");
+      const displayTitle = titleParts[0];
+      const displaySource = titleParts.length > 1 ? titleParts[titleParts.length - 1] : source;
+
       newsHtml += `
         <li>
-          <a href="#" onclick="return false;">${news.title}</a>
-          <p>${news.summary}</p>
-          <span class="briefing-source">${news.source}</span>
+          <a href="${link}" target="_blank" rel="noopener noreferrer">${displayTitle}</a>
+          <div style="margin-top: 6px; display: flex; gap: 8px; align-items: center;">
+            <span class="briefing-source">${displaySource}</span>
+            <small style="color: #64748b; font-size: 0.75rem;">${pubDateStr ? new Date(pubDateStr).toLocaleTimeString("ko-KR", {hour: '2-digit', minute:'2-digit'}) : ''}</small>
+          </div>
         </li>
       `;
     });
     newsHtml += `</ul>`;
 
-    // 우측 AI 요약 영역 카드
+    // 우측 AI 분석 카드는 유지
     let aiSummaryHtml = `
       <div class="briefing-top">
         <p class="briefing-summary">
-          현재 증시는 금리 및 기업 실적 지표에 따라 자산군별 차별화가 진행 중입니다. 
-          안전 자산과 성장 자산의 비중을 적절히 유지하며 목표 수익률을 점검하세요.
+          실시간 증시 뉴스를 기반으로 시장 변동성을 모니터링하고 있습니다. 
+          주요 금리 발표 및 기업 실적 이슈에 맞춰 포트폴리오 비중을 정기적으로 점검하세요.
         </p>
       </div>
     `;
 
     briefingContainer.innerHTML = newsHtml + aiSummaryHtml;
+
   } catch (err) {
-    console.error("뉴스 로딩 실패:", err);
+    console.error("실시간 뉴스 로딩 실패, 백업 데이터 사용:", err);
+    // API 장애 시 표시할 백업 데이터
+    briefingContainer.innerHTML = `
+      <ul class="briefing-list">
+        <li>
+          <a href="#" onclick="return false;">실시간 뉴스를 가져오는데 실패했습니다.</a>
+          <p>네트워크 상태를 확인하거나 잠시 후 다시 새로고침해 주세요.</p>
+          <span class="briefing-source">안내</span>
+        </li>
+      </ul>
+      <div class="briefing-top">
+        <p class="briefing-summary">네트워크 연결 상태를 확인해 주세요.</p>
+      </div>
+    `;
   }
 }
 
