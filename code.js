@@ -155,12 +155,21 @@
 
   async function loadBriefing() {
     const loading = document.querySelector("#briefing-loading");
+    const content = document.querySelector("#briefing-content");
+    
+    if (loading) {
+      loading.hidden = false;
+      loading.textContent = "최신 주식 뉴스를 불러오는 중입니다...";
+    }
+    if (content) content.hidden = true;
+
     try {
-      const response = await fetch("daily-briefing.json", { cache: "no-store" });
+      // 캐시 방지를 위해 타임스탬프(?t=...) 파라미터 추가
+      const response = await fetch(`daily-briefing.json?t=${Date.now()}`);
       if (!response.ok) throw new Error("No briefing yet");
       showBriefing(await response.json());
     } catch {
-      if (loading) loading.textContent = "오늘의 아침 브리핑은 오전 7시(KST)에 준비됩니다.";
+      if (loading) loading.textContent = "아직 준비된 브리핑이 없습니다. (Actions 배포 상태를 확인해 주세요)";
     }
   }
 
@@ -282,47 +291,11 @@
       };
     }
 
-    // 실시간 뉴스 불러오기 (Supabase Edge Function)
+    // 현 시점에서 불러오기 버튼 클릭 이벤트 (daily-briefing.json 즉시 재로드)
     const refreshBtn = document.querySelector("#refresh-briefing");
     if (refreshBtn) {
-      refreshBtn.addEventListener("click", async () => {
-        const loading = document.querySelector("#briefing-loading");
-        const content = document.querySelector("#briefing-content");
-        const endpoint = window.PORTFOLIO_CONFIG?.BRIEFING_FUNCTION_URL;
-
-        if (!endpoint) {
-          if (loading) { loading.hidden = false; loading.textContent = "실시간 조회 연결을 설정해 주세요."; }
-          if (content) content.hidden = true;
-          return;
-        }
-
-        let token = localStorage.getItem("briefing-refresh-token");
-        if (!token) {
-          token = window.prompt("실시간 브리핑 접근 토큰을 입력하세요.");
-          if (!token) return;
-          localStorage.setItem("briefing-refresh-token", token);
-        }
-
-        refreshBtn.disabled = true;
-        if (loading) { loading.hidden = false; loading.textContent = "현 시점의 주요 주식 뉴스를 분석하고 있어요."; }
-        if (content) content.hidden = true;
-
-        try {
-          const response = await fetch(endpoint, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "x-briefing-token": token }
-          });
-          if (response.status === 401) {
-            localStorage.removeItem("briefing-refresh-token");
-            throw new Error("토큰이 맞지 않습니다.");
-          }
-          if (!response.ok) throw new Error("실시간 브리핑을 만들지 못했습니다.");
-          showBriefing(await response.json());
-        } catch (error) {
-          if (loading) { loading.hidden = false; loading.textContent = error.message; }
-        } finally {
-          refreshBtn.disabled = false;
-        }
+      refreshBtn.addEventListener("click", () => {
+        loadBriefing();
       });
     }
 
