@@ -124,30 +124,34 @@ function renderGoal(total) {
   if (barFill) barFill.style.width = `${percent}%`;
 }
 
-// 6. 📰 실제 index.html 구조와 100% 연동되는 뉴스 브리핑 & [새로고침] 로직
+// 6. 📰 실시간 주요 증시 뉴스 연동 & [새로고침] 완전 갱신 로직
 async function renderBriefing() {
   const briefingContainer = document.getElementById("briefing-content");
   const briefingLoading = document.getElementById("briefing-loading");
   const briefingDate = document.getElementById("briefing-date");
   const refreshBtn = document.getElementById("refresh-briefing");
 
-  // 1. 로딩 상태 UI 처리
+  // 1. 로딩 UI 처리
   if (briefingLoading) {
     briefingLoading.style.display = "block";
-    briefingLoading.textContent = "최신 주요 증시 뉴스를 불러오고 있어요...";
+    briefingLoading.textContent = "최신 주요 증시 뉴스를 탐색하고 있어요...";
   }
   if (briefingContainer) {
     briefingContainer.hidden = true;
   }
-  if (briefingDate) briefingDate.textContent = "불러오는 중...";
+  if (briefingDate) briefingDate.textContent = "갱신 중...";
   if (refreshBtn) refreshBtn.disabled = true;
 
   let items = [];
 
-  // 2. 실시간 주요 뉴스 데이터 파싱 (1차: rss2json)
+  // 캐시 우회를 위한 무작위 난수 생성 (새로고침 시 매번 다른 주소로 인식하게 함)
+  const cacheBuster = `&_nocache=${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+  // [1차 시도] rss2json API
   try {
-    const targetRss = encodeURIComponent("https://news.google.com/rss/search?q=%EC%A3%BC%EC%9A%94+%EC%A6%9D%EC%8B%9C+%ED%97%A4%EB%93%9C%EB%9D%BC%EC%9D%B8&hl=ko&gl=KR&ceid=KR:ko");
-    const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${targetRss}&_t=${Date.now()}`;
+    // 키워드를 '주식 증시'로 다변화하여 최신 헤드라인 수집
+    const targetRss = encodeURIComponent("https://news.google.com/rss/search?q=%EC%A3%BC%EC%8B%9D+%EC%A6%9D%EC%8B%9C+%EA%B8%88%EB%A6%AC&hl=ko&gl=KR&ceid=KR:ko");
+    const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${targetRss}${cacheBuster}`;
 
     const res = await fetch(apiUrl);
     const data = await res.json();
@@ -165,14 +169,14 @@ async function renderBriefing() {
       });
     }
   } catch (e) {
-    console.warn("1차 RSS API 실패, 백업 로직으로 전환 중...", e);
+    console.warn("1차 RSS API 실패, 백업 로직 시도...", e);
   }
 
-  // (2차: 백업 프록시 corsproxy.io)
+  // [2차 시도] 백업 프록시 (corsproxy.io)
   if (items.length === 0) {
     try {
-      const rssUrl = "https://news.google.com/rss/search?q=%EC%A3%BC%EC%9A%94+%EC%A6%9D%EC%8B%9C+%ED%97%A4%EB%93%9C%EB%9D%BC%EC%9D%B8&hl=ko&gl=KR&ceid=KR:ko";
-      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(rssUrl)}`;
+      const rssUrl = "https://news.google.com/rss/search?q=%EC%A3%BC%EC%8B%9D+%EC%A6%9D%EC%8B%9C&hl=ko&gl=KR&ceid=KR:ko";
+      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(rssUrl)}${cacheBuster}`;
       
       const res = await fetch(proxyUrl);
       const xmlText = await res.text();
@@ -195,7 +199,7 @@ async function renderBriefing() {
     }
   }
 
-  // 3. UI 바인딩 및 화면에 출력
+  // 3. UI 바인딩 및 화면 표시
   if (items.length > 0) {
     let newsHtml = `<ul class="briefing-list">`;
     items.forEach(item => {
@@ -223,12 +227,11 @@ async function renderBriefing() {
 
     if (briefingContainer) {
       briefingContainer.innerHTML = newsHtml + aiSummaryHtml;
-      briefingContainer.hidden = false; // hidden 해제해서 화면 표시
+      briefingContainer.hidden = false;
     }
     if (briefingLoading) briefingLoading.style.display = "none";
-    if (briefingDate) briefingDate.textContent = `최신 정보 (${new Date().toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'})})`;
+    if (briefingDate) briefingDate.textContent = `최신 정보 (${new Date().toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit', second:'2-digit'})})`;
   } else {
-    // 모두 실패했을 경우
     if (briefingLoading) {
       briefingLoading.style.display = "block";
       briefingLoading.textContent = "⚠️ 뉴스를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
@@ -239,15 +242,6 @@ async function renderBriefing() {
   if (refreshBtn) refreshBtn.disabled = false;
 }
 
-// 4. 페이지 초기 로드 시 버튼 이벤트 연동 (code.js 하단 DOMContentLoaded 내부나 스크립트에 추가)
-document.addEventListener("DOMContentLoaded", () => {
-  const refreshBtn = document.getElementById("refresh-briefing");
-  if (refreshBtn) {
-    refreshBtn.addEventListener("click", () => {
-      renderBriefing();
-    });
-  }
-});
 // 7. 자산 삭제
 function deleteAsset(id) {
   assets = assets.filter((item) => item.id !== id);
