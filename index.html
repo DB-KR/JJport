@@ -81,7 +81,7 @@
             </div>
           </article>
 
-          <!-- 자산 배분 (Chart.js 도넛 차트) -->
+          <!-- 자산 배분 -->
           <article class="card allocation-card" id="allocation">
             <p class="card-label">자산 배분</p>
             <div class="donut-wrap" style="position: relative; width: 100%; min-height: 200px; display: flex; align-items: center; gap: 16px;">
@@ -111,7 +111,7 @@
           </div>
         </section>
 
-        <!-- 3. 기간별 실현 손익 요약 카드 (신규!) -->
+        <!-- 3. 기간별 실현 손익 요약 카드 -->
         <section id="realized-returns" style="margin-top: 40px;">
           <div class="section-heading">
             <div><p class="eyebrow">PERFORMANCE REPORT</p><h2>기간별 실현 손익 분석 (매도 기록 기반)</h2></div>
@@ -160,7 +160,7 @@
           </div>
         </section>
 
-        <!-- 5. 매수 / 매도 이력 기록 섹션 (신규!) -->
+        <!-- 5. 매수 / 매도 이력 기록 섹션 -->
         <section id="transactions" style="margin-top: 40px;">
           <div class="section-heading">
             <div><p class="eyebrow">TRANSACTION HISTORY</p><h2>매수 / 매도 이력</h2></div>
@@ -252,7 +252,7 @@
       </main>
     </div>
 
-    <!-- 💡 매수 / 매도 거래 등록 모달 -->
+    <!-- 💡 매수 / 매도 거래 등록 모달 (드롭다운 달력 및 부동산/대출 옵션 포함) -->
     <dialog id="tx-modal">
       <form id="tx-form" method="dialog">
         <div class="modal-heading">
@@ -260,18 +260,37 @@
           <button class="close" type="button" id="close-tx-modal" aria-label="닫기">×</button>
         </div>
         <div class="form-grid">
-          <label>거래 일자<input required type="date" name="date" id="tx-date" /></label>
+          <label style="display: flex; flex-direction: column; gap: 6px;">
+            거래 일자
+            <input 
+              required 
+              type="date" 
+              name="date" 
+              id="tx-date" 
+              style="
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 6px;
+                padding: 8px 12px;
+                color: #fff;
+                font-size: 0.9rem;
+                color-scheme: dark;
+                cursor: pointer;
+              "
+            />
+          </label>
           <label>구분
             <select name="type">
               <option value="BUY">매수 (BUY)</option>
               <option value="SELL">매도 (SELL)</option>
             </select>
           </label>
-          <label>자산명<input required name="name" placeholder="예: AAPL, 삼성전자" /></label>
+          <label>자산명<input required name="name" placeholder="예: AAPL, 아파트, 주담대" /></label>
           <label>분류
             <select name="category">
               <option value="해외주식">해외주식</option>
               <option value="국내주식">국내주식</option>
+              <option value="ETF">ETF</option>
               <option value="부동산">부동산</option>
               <option value="가상자산">가상자산</option>
               <option value="채권">채권</option>
