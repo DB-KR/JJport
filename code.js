@@ -124,7 +124,7 @@ function renderGoal(total) {
   if (barFill) barFill.style.width = `${percent}%`;
 }
 
-// 6. 📰 실시간 '주요 증시 뉴스' 상위 헤드라인 연동 로직
+// 6. 📰 실시간 '주요 증시 뉴스' 연동 & 원클릭 [🔄 새로고침] 로직
 async function renderBriefing() {
   const briefingContainer = document.getElementById("briefing-content");
   if (!briefingContainer) return;
@@ -137,9 +137,11 @@ async function renderBriefing() {
   `;
 
   try {
-    // 네이버 금융 주요 증시 헤드라인 RSS 연동
+    // 네이버/구글 금융 주요 증시 헤드라인 RSS (rss2json 고속 파싱)
     const targetRss = encodeURIComponent("https://news.google.com/rss/search?q=%EC%A3%BC%EC%9A%94+%EC%A6%9D%EC%8B%9C+%ED%97%A4%EB%93%9C%EB%9D%BC%EC%9D%B8&hl=ko&gl=KR&ceid=KR:ko");
-    const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${targetRss}`;
+    
+    // 캐시 방지를 위해 현재 시각 타임스탬프(?_t=...) 추가하여 클릭 시 진짜 최신 데이터 가져오기
+    const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${targetRss}&_t=${Date.now()}`;
 
     const response = await fetch(apiUrl);
     const data = await response.json();
@@ -148,18 +150,16 @@ async function renderBriefing() {
       throw new Error("주요 뉴스를 가져오지 못했습니다.");
     }
 
-    // 무작위 섞기 없이 가장 비중 높은 '주요 뉴스 상위 4개'만 순서대로 추출
+    // 주요 뉴스 상위 4개 추출
     const topNewsList = data.items.slice(0, 4);
 
     let newsHtml = `<ul class="briefing-list">`;
     topNewsList.forEach((item) => {
-      // 제목 및 언론사 정보 정형화
       const fullTitle = item.title || "주요 증시 뉴스";
       const titleParts = fullTitle.split(" - ");
       const displayTitle = titleParts[0];
       const displaySource = titleParts.length > 1 ? titleParts[titleParts.length - 1] : (item.author || "주요뉴스");
       
-      // 작성 시각
       const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
       const timeStr = pubDate.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
 
@@ -175,11 +175,17 @@ async function renderBriefing() {
     });
     newsHtml += `</ul>`;
 
-    // 우측 AI 브리핑 카드
+    // 🎯 우측 AI 카드 상단에 [🔄 새로고침] 버튼배치
     let aiSummaryHtml = `
       <div class="briefing-top">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <span style="font-size: 0.8rem; color: #978cff; font-weight: 700;">🤖 AI 증시 브리핑</span>
+          <button onclick="renderBriefing()" style="background: #28304d; color: #fff; border: 1px solid #3b4262; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; transition: 0.2s;">
+            🔄 새로고침
+          </button>
+        </div>
         <p class="briefing-summary">
-          오늘의 핵심 증시 이슈를 종합 점검 중입니다. 
+          오늘의 핵심 증시 이슈를 실시간으로 점검 중입니다. 
           주요 헤드라인 지표와 시장 흐름을 바탕으로 포트폴리오 리스크를 관리해 보세요.
         </p>
       </div>
@@ -192,12 +198,14 @@ async function renderBriefing() {
     
     briefingContainer.innerHTML = `
       <div style="grid-column: 1 / -1; padding: 20px; text-align: center; color: #ef4444; font-size: 0.85rem;">
-        ⚠️ 주요 뉴스를 불러오는 도중 오류가 발생했습니다. 잠시 후 새로고침 해주세요.
+        ⚠️ 주요 뉴스를 불러오는 도중 오류가 발생했습니다.
+        <button onclick="renderBriefing()" style="margin-left: 10px; background: #28304d; color: #fff; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">
+          🔄 다시 시도
+        </button>
       </div>
     `;
   }
 }
-
 // 7. 자산 삭제
 function deleteAsset(id) {
   assets = assets.filter((item) => item.id !== id);
