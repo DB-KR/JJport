@@ -217,3 +217,96 @@ dialog form{padding:26px}
   padding: 3px 8px !important;
   border-radius: 6px !important;
 }
+/* ==========================================
+   목표 자산 달성률 (Goal Tracker) 스타일
+   ========================================== */
+.goal-card {
+  background: #151c33 !important;
+  border: 1px solid #28304d !important;
+  border-radius: 16px !important;
+  padding: 20px 24px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+}
+
+.goal-header {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 12px !important;
+}
+
+.goal-input-wrap {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.goal-input-box {
+  display: flex !important;
+  align-items: center !important;
+  background: #0b1020 !important;
+  border: 1px solid #383e59 !important;
+  border-radius: 8px !important;
+  padding: 4px 10px !important;
+}
+
+.goal-input-box input {
+  background: transparent !important;
+  border: none !important;
+  color: #6366f1 !important;
+  font-family: 'DM Mono', monospace !important;
+  font-size: 0.95rem !important;
+  font-weight: 700 !important;
+  text-align: right !important;
+  width: 120px !important;
+  outline: none !important;
+}
+
+.goal-input-box small {
+  color: #64748b !important;
+  margin-left: 4px !important;
+}
+
+.goal-progress-wrap {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+.goal-stats {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: baseline !important;
+}
+
+.goal-percent {
+  font-size: 1.4rem !important;
+  font-weight: 800 !important;
+  color: #55dfb2 !important; /* 포인트 네온 그린 */
+  font-family: 'Manrope', sans-serif !important;
+}
+
+.goal-remaining {
+  font-size: 0.85rem !important;
+  color: #94a3b8 !important;
+}
+
+/* 게이지 바 애니메이션 */
+.goal-bar-bg {
+  width: 100% !important;
+  height: 12px !important;
+  background: #0b1020 !important;
+  border-radius: 100px !important;
+  overflow: hidden !important;
+  border: 1px solid #28304d !important;
+}
+
+.goal-bar-fill {
+  height: 100% !important;
+  background: linear-gradient(90deg, #8a7cff 0%, #55dfb2 100%) !important;
+  border-radius: 100px !important;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
