@@ -124,61 +124,93 @@ function renderGoal(total) {
   if (barFill) barFill.style.width = `${percent}%`;
 }
 
-// 6. 📰 실시간 주요 증시 뉴스 연동 & [새로고침] 연동 로직
+// 6. 📰 실제 index.html 구조와 100% 연동되는 뉴스 브리핑 & [새로고침] 로직
 async function renderBriefing() {
   const briefingContainer = document.getElementById("briefing-content");
-  const statusText = document.getElementById("news-status-text");
-  const refreshBtn = document.getElementById("btn-refresh-news");
+  const briefingLoading = document.getElementById("briefing-loading");
+  const briefingDate = document.getElementById("briefing-date");
+  const refreshBtn = document.getElementById("refresh-briefing");
 
-  // 상태 표시 업데이트
-  if (statusText) statusText.textContent = "불러오는 중...";
+  // 1. 로딩 상태 UI 처리
+  if (briefingLoading) {
+    briefingLoading.style.display = "block";
+    briefingLoading.textContent = "최신 주요 증시 뉴스를 불러오고 있어요...";
+  }
+  if (briefingContainer) {
+    briefingContainer.hidden = true;
+  }
+  if (briefingDate) briefingDate.textContent = "불러오는 중...";
   if (refreshBtn) refreshBtn.disabled = true;
 
-  if (briefingContainer) {
-    briefingContainer.innerHTML = `
-      <div style="grid-column: 1 / -1; padding: 25px; text-align: center; color: #94a3b8; font-size: 0.9rem;">
-        ⚡ 최신 주요 증시 뉴스를 가져오는 중입니다...
-      </div>
-    `;
-  }
+  let items = [];
 
+  // 2. 실시간 주요 뉴스 데이터 파싱 (1차: rss2json)
   try {
-    // 실시간 RSS 파싱 (캐시 방지용 타임스탬프 적용)
     const targetRss = encodeURIComponent("https://news.google.com/rss/search?q=%EC%A3%BC%EC%9A%94+%EC%A6%9D%EC%8B%9C+%ED%97%A4%EB%93%9C%EB%9D%BC%EC%9D%B8&hl=ko&gl=KR&ceid=KR:ko");
     const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${targetRss}&_t=${Date.now()}`;
 
-    const response = await fetch(apiUrl);
-    const data = await response.json();
+    const res = await fetch(apiUrl);
+    const data = await res.json();
 
-    if (data.status !== "ok" || !data.items || data.items.length === 0) {
-      throw new Error("주요 뉴스를 가져오지 못했습니다.");
+    if (data.status === "ok" && data.items && data.items.length > 0) {
+      items = data.items.slice(0, 4).map(item => {
+        const fullTitle = item.title || "주요 증시 뉴스";
+        const parts = fullTitle.split(" - ");
+        return {
+          title: parts[0],
+          source: parts.length > 1 ? parts[parts.length - 1] : (item.author || "주요뉴스"),
+          link: item.link,
+          time: item.pubDate ? new Date(item.pubDate).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : ""
+        };
+      });
     }
+  } catch (e) {
+    console.warn("1차 RSS API 실패, 백업 로직으로 전환 중...", e);
+  }
 
-    const topNewsList = data.items.slice(0, 4);
-
-    let newsHtml = `<ul class="briefing-list">`;
-    topNewsList.forEach((item) => {
-      const fullTitle = item.title || "주요 증시 뉴스";
-      const titleParts = fullTitle.split(" - ");
-      const displayTitle = titleParts[0];
-      const displaySource = titleParts.length > 1 ? titleParts[titleParts.length - 1] : (item.author || "주요뉴스");
+  // (2차: 백업 프록시 corsproxy.io)
+  if (items.length === 0) {
+    try {
+      const rssUrl = "https://news.google.com/rss/search?q=%EC%A3%BC%EC%9A%94+%EC%A6%9D%EC%8B%9C+%ED%97%A4%EB%93%9C%EB%9D%BC%EC%9D%B8&hl=ko&gl=KR&ceid=KR:ko";
+      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(rssUrl)}`;
       
-      const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
-      const timeStr = pubDate.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+      const res = await fetch(proxyUrl);
+      const xmlText = await res.text();
+      const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
+      const xmlItems = Array.from(xmlDoc.querySelectorAll("item")).slice(0, 4);
 
+      items = xmlItems.map(item => {
+        const fullTitle = item.querySelector("title")?.textContent || "주요 증시 뉴스";
+        const parts = fullTitle.split(" - ");
+        const pubDate = item.querySelector("pubDate")?.textContent;
+        return {
+          title: parts[0],
+          source: parts.length > 1 ? parts[parts.length - 1] : "주요뉴스",
+          link: item.querySelector("link")?.textContent || "#",
+          time: pubDate ? new Date(pubDate).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : ""
+        };
+      });
+    } catch (e) {
+      console.error("2차 백업 프록시 실패:", e);
+    }
+  }
+
+  // 3. UI 바인딩 및 화면에 출력
+  if (items.length > 0) {
+    let newsHtml = `<ul class="briefing-list">`;
+    items.forEach(item => {
       newsHtml += `
         <li>
-          <a href="${item.link}" target="_blank" rel="noopener noreferrer">${displayTitle}</a>
+          <a href="${item.link}" target="_blank" rel="noopener noreferrer">${item.title}</a>
           <div style="margin-top: 6px; display: flex; gap: 8px; align-items: center;">
-            <span class="briefing-source">${displaySource}</span>
-            <small style="color: #64748b; font-size: 0.75rem;">${timeStr}</small>
+            <span class="briefing-source">${item.source}</span>
+            <small style="color: #64748b; font-size: 0.75rem;">${item.time}</small>
           </div>
         </li>
       `;
     });
     newsHtml += `</ul>`;
 
-    // 우측 AI 카드는 깔끔하게 요약만 표시 (중복 버튼 제거)
     let aiSummaryHtml = `
       <div class="briefing-top">
         <span style="font-size: 0.8rem; color: #978cff; font-weight: 700; display: block; margin-bottom: 8px;">🤖 AI 증시 브리핑</span>
@@ -191,26 +223,31 @@ async function renderBriefing() {
 
     if (briefingContainer) {
       briefingContainer.innerHTML = newsHtml + aiSummaryHtml;
+      briefingContainer.hidden = false; // hidden 해제해서 화면 표시
     }
-
-    // 성공 시 상태 표시 원복
-    if (statusText) statusText.textContent = "최신 정보";
-
-  } catch (err) {
-    console.error("주요 뉴스 로드 실패:", err);
-    if (briefingContainer) {
-      briefingContainer.innerHTML = `
-        <div style="grid-column: 1 / -1; padding: 20px; text-align: center; color: #ef4444; font-size: 0.85rem;">
-          ⚠️ 주요 뉴스를 불러오는 도중 오류가 발생했습니다. 상단 버튼으로 다시 시도해주세요.
-        </div>
-      `;
+    if (briefingLoading) briefingLoading.style.display = "none";
+    if (briefingDate) briefingDate.textContent = `최신 정보 (${new Date().toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'})})`;
+  } else {
+    // 모두 실패했을 경우
+    if (briefingLoading) {
+      briefingLoading.style.display = "block";
+      briefingLoading.textContent = "⚠️ 뉴스를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
     }
-    if (statusText) statusText.textContent = "로딩 실패";
-  } finally {
-    if (refreshBtn) refreshBtn.disabled = false;
+    if (briefingDate) briefingDate.textContent = "불러오기 실패";
   }
+
+  if (refreshBtn) refreshBtn.disabled = false;
 }
 
+// 4. 페이지 초기 로드 시 버튼 이벤트 연동 (code.js 하단 DOMContentLoaded 내부나 스크립트에 추가)
+document.addEventListener("DOMContentLoaded", () => {
+  const refreshBtn = document.getElementById("refresh-briefing");
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", () => {
+      renderBriefing();
+    });
+  }
+});
 // 7. 자산 삭제
 function deleteAsset(id) {
   assets = assets.filter((item) => item.id !== id);
