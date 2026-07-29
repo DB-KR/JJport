@@ -312,5 +312,32 @@
     loadBriefing();
     renderDividend();
     renderSp500();
+    
+    // --- 스크롤 및 메뉴 클릭 시 자동 하이라이트(Active) 스크립트 ---
+    const navLinks = document.querySelectorAll(".nav-link");
+    const sections = document.querySelectorAll("main > section[id]");
+
+    const observerOptions = {
+      root: null,
+      rootMargin: "-20% 0px -60% 0px",
+      threshold: 0
+    };
+
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const currentId = entry.target.getAttribute("id");
+          navLinks.forEach(link => {
+            if (link.getAttribute("href") === `#${currentId}`) {
+              link.classList.add("active");
+            } else {
+              link.classList.remove("active");
+            }
+          });
+        }
+      });
+    }, observerOptions);
+
+    sections.forEach(section => observer.observe(section));
   });
 })();
