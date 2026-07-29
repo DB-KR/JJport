@@ -48,22 +48,24 @@
               </div>
             </div>
     
-    <div class="goal-progress-wrap">
-      <div class="goal-stats">
-        <span class="goal-percent" id="goal-percent-text">0.0%</span>
-        <span class="goal-remaining" id="goal-remaining-text">목표까지 ₩0 남음</span>
-      </div>
-      <div class="goal-bar-bg">
-        <div class="goal-bar-fill" id="goal-bar-fill" style="width: 0%;"></div>
-      </div>
-    </div>
-  </article>
+            <div class="goal-progress-wrap">
+              <div class="goal-stats">
+                <span class="goal-percent" id="goal-percent-text">0.0%</span>
+                <span class="goal-remaining" id="goal-remaining-text">목표까지 ₩0 남음</span>
+              </div>
+              <div class="goal-bar-bg">
+                <div class="goal-bar-fill" id="goal-bar-fill" style="width: 0%;"></div>
+              </div>
+            </div>
+          </article>
+
           <article class="card total-card">
             <p class="card-label">순자산</p>
             <div class="value-row"><strong id="net-worth">₩0</strong><span class="trend neutral" id="net-trend">—</span></div>
             <div class="portfolio-line"><span>투자 자산 <b id="invested-value">₩0</b></span><span>현금 <b id="cash-value">₩0</b></span></div>
             <svg class="line-chart" viewBox="0 0 600 120" preserveAspectRatio="none" role="img" aria-label="자산 추이"><defs><linearGradient id="fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#8a7cff" stop-opacity=".28"/><stop offset="100%" stop-color="#8a7cff" stop-opacity="0"/></linearGradient></defs><path d="M0,100 C35,92 50,95 78,78 S120,65 145,74 S180,56 205,66 S245,42 275,52 S315,58 345,31 S390,39 420,25 S462,46 492,32 S540,12 600,18 L600,120 L0,120Z" fill="url(#fill)"/><path d="M0,100 C35,92 50,95 78,78 S120,65 145,74 S180,56 205,66 S245,42 275,52 S315,58 345,31 S390,39 420,25 S462,46 492,32 S540,12 600,18" fill="none" stroke="#978cff" stroke-width="2.5" vector-effect="non-scaling-stroke"/></svg>
           </article>
+
           <article class="card highlight-card">
             <div>
               <p class="card-label">전체 평가손익</p>
@@ -77,11 +79,18 @@
               <p class="rank-caption" id="rank-caption">자산을 추가하면 비교해 드려요</p>
             </div>
           </article>
+
+          <!-- 자산 배분 (Chart.js 도넛 차트 적용) -->
           <article class="card allocation-card" id="allocation">
             <p class="card-label">자산 배분</p>
-            <div class="donut-wrap">
-              <div class="donut" id="donut"><span id="asset-count">0</span><small>종목</small></div>
-              <ul class="legend" id="legend"></ul>
+            <div class="donut-wrap" style="position: relative; width: 100%; min-height: 200px; display: flex; align-items: center; gap: 16px;">
+              <div style="position: relative; width: 160px; height: 160px; flex-shrink: 0;">
+                <canvas id="allocationCanvas"></canvas>
+                <div class="donut" id="donut" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; text-align: center;">
+                  <span id="asset-count">0</span><small>종목</small>
+                </div>
+              </div>
+              <ul class="legend" id="legend" style="flex: 1; list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem;"></ul>
             </div>
           </article>
         </section>
@@ -119,7 +128,7 @@
         <!-- 4. 투자 시뮬레이터 -->
         <section id="simulators" style="margin-top: 40px;">
           <div class="section-heading simulator-heading">
-            <div><p class="eyebrow">PLANNING LAB</p><h2>투자 시뮬레이터</h2></div>
+            <div><p class="eyebrow">PLANNING LAB</p><h2>투자 시뮬레이터 & 리밸런싱</h2></div>
             <span class="simulator-note">가정에 따른 예상치입니다</span>
           </div>
           <div class="simulator-grid" aria-label="투자 시뮬레이터">
@@ -140,6 +149,7 @@
               </div>
               <p class="sim-caption" id="dividend-caption"></p>
             </article>
+
             <article class="card simulator-card">
               <div class="simulator-title"><div><p class="eyebrow">INDEX INVESTING</p><h3>S&P 500 시뮬레이터</h3></div><span class="sim-badge">장기 적립식</span></div>
               <div class="sim-inputs">
@@ -158,11 +168,40 @@
               </div>
               <p class="sim-caption" id="sp-caption"></p>
             </article>
+
+            <!-- 포트폴리오 리밸런싱 계산기 카드 -->
+            <article class="card simulator-card" style="grid-column: 1 / -1; margin-top: 20px;">
+              <div class="simulator-title">
+                <div>
+                  <p class="eyebrow">PORTFOLIO REBALANCING</p>
+                  <h3>포트폴리오 리밸런싱 계산기</h3>
+                </div>
+                <span class="sim-badge" style="background: rgba(129, 140, 248, 0.2); color: #818cf8; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem;">목표 비중 맞춤</span>
+              </div>
+
+              <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 16px;">
+                현재 입력된 보유 자산을 기반으로, 목표하는 분류별 비중에 맞추기 위한 매수/매도 필요 금액을 계산합니다.
+              </p>
+
+              <div id="rebalance-inputs" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px;">
+                <!-- 자산 분류별 목표 비중 입력창이 JS로 자동 생성됩니다 -->
+              </div>
+
+              <div class="sim-results" style="margin-bottom: 16px;">
+                <div><span>목표 비중 합계</span><strong id="rebalance-total-ratio">0%</strong></div>
+                <div><span>추가 매수 필요 총액</span><strong id="rebalance-needed-sum">₩0</strong></div>
+              </div>
+
+              <div id="rebalance-actions-list" style="background: rgba(255, 255, 255, 0.03); border-radius: 8px; padding: 12px; font-size: 0.85rem;">
+                <p style="color: #64748b; margin: 0;">자산을 등록하면 리밸런싱 가이드가 표시됩니다.</p>
+              </div>
+            </article>
           </div>
         </section>
       </main>
     </div>
 
+    <!-- 모달 창 -->
     <dialog id="asset-modal">
       <form id="asset-form" method="dialog">
         <div class="modal-heading"><div><p class="eyebrow">NEW HOLDING</p><h2>자산 추가</h2></div><button class="close" type="button" id="close-modal" aria-label="닫기">×</button></div>
