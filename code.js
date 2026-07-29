@@ -124,23 +124,22 @@ function renderGoal(total) {
   if (barFill) barFill.style.width = `${percent}%`;
 }
 
-// 6. 📰 키워드 로테이션 방식의 진짜 실시간 뉴스 새로고침 로직
+// 6. 📰 키워드 로테이션 방식의 실시간 뉴스 (버튼 먹통 방지 안전 로직 적용)
 async function renderBriefing() {
   const briefingContainer = document.getElementById("briefing-content");
   const briefingLoading = document.getElementById("briefing-loading");
   const briefingDate = document.getElementById("briefing-date");
   const refreshBtn = document.getElementById("refresh-briefing");
 
-  // 1. UI 상태 변경
+  // 1. UI 상태 변경 (버튼의 disabled는 비활성화하여 언제든 재클릭 가능하게 유지)
   if (briefingLoading) {
     briefingLoading.style.display = "block";
     briefingLoading.textContent = "최신 증시 이슈를 새로 탐색하는 중...";
   }
   if (briefingContainer) briefingContainer.hidden = true;
   if (briefingDate) briefingDate.textContent = "갱신 중...";
-  if (refreshBtn) refreshBtn.disabled = true;
 
-  // 2. 새로고침할 때마다 구글 검색 키워드를 무작위로 교체 (구글 캐시 완전 우회)
+  // 2. 새로고침할 때마다 키워드를 무작위로 교체
   const keywords = [
     "주요 증시 헤드라인",
     "국내 증시 주식 시황",
@@ -154,8 +153,8 @@ async function renderBriefing() {
   let items = [];
   const cacheBuster = `&_t=${Date.now()}`;
 
-  // [1차 시도] rss2json API
   try {
+    // [1차 시도] rss2json API
     const targetRss = encodeURIComponent(`https://news.google.com/rss/search?q=${encodeURIComponent(randomKeyword)}&hl=ko&gl=KR&ceid=KR:ko`);
     const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${targetRss}${cacheBuster}`;
 
@@ -237,7 +236,6 @@ async function renderBriefing() {
     }
     if (briefingLoading) briefingLoading.style.display = "none";
     
-    // 현재 시각 초단위 표기
     const nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     if (briefingDate) briefingDate.textContent = `최신 정보 (${nowStr})`;
   } else {
@@ -247,9 +245,18 @@ async function renderBriefing() {
     }
     if (briefingDate) briefingDate.textContent = "불러오기 실패";
   }
-
-  if (refreshBtn) refreshBtn.disabled = false;
 }
+
+// 4. 새로고침 버튼에 클릭 이벤트 등록 (중복 등록 방지)
+document.addEventListener("DOMContentLoaded", () => {
+  const refreshBtn = document.getElementById("refresh-briefing");
+  if (refreshBtn && !refreshBtn.dataset.bound) {
+    refreshBtn.dataset.bound = "true";
+    refreshBtn.addEventListener("click", () => {
+      renderBriefing();
+    });
+  }
+});
 
 // 7. 자산 삭제
 function deleteAsset(id) {
