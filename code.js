@@ -1,393 +1,221 @@
-/**
- * 개인 투자 대시보드 코어 라이브러리 (code.js)
- */
-(() => {
-  // --- 1. 자산 관리 코어 (Core Portfolio Storage & Rendering) ---
-  const STORE = "portfolio-dashboard-v1";
-  let holdings = JSON.parse(localStorage.getItem(STORE) || "[]");
-  
-  // 통화 및 숫자 포맷터 (3자리마다 콤마 적용)
-  const won = new Intl.NumberFormat("ko-KR", { style: "currency", currency: "KRW", maximumFractionDigits: 0 });
-  const format = value => won.format(value || 0);
-  const numFormat = value => (Number(value) || 0).toLocaleString("ko-KR");
+/* ==========================================
+   포트폴리오 대시보드 메인 JS
+   ========================================== */
 
-  const colors = ["#978cff", "#55dfb2", "#ffb86b", "#5bbcff", "#ed8cc5", "#d5cf79"];
-  const THIRTY_MEAN_NET_WORTH = 221580000;
-  const THIRTY_LOG_STDDEV = 0.95;
+// 1. 포맷터 정의
+const won = new Intl.NumberFormat("ko-KR", { style: "currency", currency: "KRW" });
+const dollar = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 
-  function normalCDF(value) {
-    const sign = value < 0 ? -1 : 1;
-    const x = Math.abs(value) / Math.sqrt(2);
-    const t = 1 / (1 + 0.3275911 * x);
-    const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
-    return 0.5 * (1 + sign * y);
-  }
+// 2. 초기 데이터 (LocalStorage 연동)
+let assets = JSON.parse(localStorage.getItem("my_assets")) || [
+  { id: 1, name: "삼성전자", category: "stock", qty: 100, buyPrice: 70000, currentPrice: 75000 },
+  { id: 2, name: "S&P 500 ETF", category: "stock", qty: 50, buyPrice: 450000, currentPrice: 480000 },
+  { id: 3, name: "토스 파킹통장", category: "cash", qty: 1, buyPrice: 10000000, currentPrice: 10000000 }
+];
 
-  function estimatedTopPercent(value) {
-    if (value <= 0) return null;
-    const mu = Math.log(THIRTY_MEAN_NET_WORTH) - (THIRTY_LOG_STDDEV ** 2) / 2;
-    const percentile = normalCDF((Math.log(value) - mu) / THIRTY_LOG_STDDEV);
-    return Math.max(0.1, Math.min(99.9, (1 - percentile) * 100));
-  }
+// 데이터 저장
+function saveAssets() {
+  localStorage.setItem("my_assets", JSON.stringify(assets));
+}
 
-  function animateValue(element, value, formatter) {
-    if (!element) return;
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { element.textContent = formatter(value); return; }
-    const start = performance.now(), duration = 650;
-    const step = now => {
-      const p = Math.min(1, (now - start) / duration);
-      element.textContent = formatter(value * (1 - (1 - p) ** 3));
-      if (p < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  }
+// 3. 메인 렌더링 함수
+function render() {
+  let totalInvested = 0;
+  let totalCurrent = 0;
+  let cashTotal = 0;
+  let stockTotal = 0;
 
-  function escapeHTML(text) {
-    const div = document.createElement("div");
-    div.textContent = text;
-    return div.innerHTML;
-  }
+  const tbody = document.getElementById("asset-tbody");
+  if (tbody) tbody.innerHTML = "";
 
-  function persist() {
-    localStorage.setItem(STORE, JSON.stringify(holdings));
-  }
+  assets.forEach((item) => {
+    const buyTotal = item.qty * item.buyPrice;
+    const currentVal = item.qty * item.currentPrice;
+    const profit = currentVal - buyTotal;
+    const profitRate = buyTotal > 0 ? (profit / buyTotal) * 100 : 0;
 
-  function renderAllocation(total) {
-    const grouped = holdings.reduce((a, h) => { a[h.category] = (a[h.category] || 0) + h.quantity * h.currentPrice; return a; }, {});
-    const parts = Object.entries(grouped).sort((a,b)=>b[1]-a[1]);
-    let cursor = 0;
-    const stops = parts.map(([name,value], i) => {
-      const start = cursor, end = cursor + (total ? value/total*360 : 0);
-      cursor = end;
-      return `${colors[i % colors.length]} ${start}deg ${end}deg`;
-    });
-    const donut = document.querySelector("#donut");
-    if (donut) {
-      donut.style.background = stops.length ? `conic-gradient(${stops.join(",")})` : "#383e59";
-      donut.classList.remove("chart-animate");
-      void donut.offsetWidth;
-      donut.classList.add("chart-animate");
+    totalInvested += buyTotal;
+    totalCurrent += currentVal;
+
+    if (item.category === "cash") cashTotal += currentVal;
+    else stockTotal += currentVal;
+
+    if (tbody) {
+      const tr = document.createElement("tr");
+      const profitClass = profit > 0 ? "trend-up" : profit < 0 ? "trend-down" : "neutral";
+      
+      tr.innerHTML = `
+        <td><strong>${item.name}</strong></td>
+        <td><span class="badge ${item.category}">${item.category === "cash" ? "현금" : "주식"}</span></td>
+        <td>${item.qty.toLocaleString()}</td>
+        <td>${won.format(item.buyPrice)}</td>
+        <td>${won.format(item.currentPrice)}</td>
+        <td>${won.format(currentVal)}</td>
+        <td class="${profitClass}">${profit > 0 ? "+" : ""}${won.format(profit)} (${profitRate.toFixed(2)}%)</td>
+        <td><button class="btn-del" onclick="deleteAsset(${item.id})">삭제</button></td>
+      `;
+      tbody.appendChild(tr);
     }
-    const legend = document.querySelector("#legend");
-    if (legend) {
-      legend.innerHTML = parts.slice(0,4).map(([name,value],i) => `<li><span><i style="background:${colors[i % colors.length]}"></i>${name}</span><b>${total ? Math.round(value / total * 100) : 0}%</b></li>`).join("") || "<li>자산을 추가해 주세요</li>";
-    }
-  }
-
-  function render() {
-    const body = document.querySelector("#holdings-body");
-    const total = holdings.reduce((sum, h) => sum + h.quantity * h.currentPrice, 0);
-    const invested = holdings.filter(h => h.category !== "현금").reduce((sum, h) => sum + h.quantity * h.currentPrice, 0);
-    const cash = total - invested;
-    const cost = holdings.reduce((sum, h) => sum + h.quantity * h.avgPrice, 0);
-    const profit = total - cost;
-    const rate = cost ? profit / cost * 100 : 0;
-
-    animateValue(document.querySelector("#net-worth"), total, format);
-    animateValue(document.querySelector("#invested-value"), invested, format);
-    animateValue(document.querySelector("#cash-value"), cash, format);
-    animateValue(document.querySelector("#monthly-profit"), Math.abs(profit), value => `${profit < 0 ? "−" : ""}${format(value)}`);
-
-    const detailElem = document.querySelector("#monthly-detail");
-    if (detailElem) detailElem.textContent = holdings.length ? `전체 평가손익 · ${rate >= 0 ? "+" : ""}${rate.toFixed(2)}%` : "거래를 추가해 시작하세요";
-
-    const trend = document.querySelector("#net-trend");
-    if (trend) {
-      trend.textContent = holdings.length ? `${rate >= 0 ? "+" : ""}${rate.toFixed(2)}%` : "—";
-      trend.className = `trend ${holdings.length ? (rate >= 0 ? "positive" : "negative") : "neutral"}`;
-    }
-
-    const topPercent = estimatedTopPercent(total);
-    const rank = document.querySelector("#rank-percent");
-    const rankBar = document.querySelector("#rank-bar");
-    if (rank) rank.textContent = topPercent === null ? "—" : `${topPercent < 1 ? "< 1" : topPercent.toFixed(1)}%`;
-    if (rankBar) rankBar.style.setProperty("--rank-width", `${topPercent === null ? 0 : Math.max(2, 100 - topPercent)}%`);
-
-    const captionElem = document.querySelector("#rank-caption");
-    if (captionElem) captionElem.textContent = topPercent === null ? "자산을 추가하면 비교해 드려요" : `입력 자산 ${format(total)} 기준 모델 추정`;
-
-    if (body) {
-      body.innerHTML = holdings.map((h, i) => {
-        const value = h.quantity * h.currentPrice;
-        const itemCost = h.quantity * h.avgPrice;
-        const r = itemCost ? (value - itemCost) / itemCost * 100 : 0;
-        return `<tr>
-          <td><div class="asset-name"><span class="asset-badge">${h.symbol.slice(0,3)}</span><span>${escapeHTML(h.name)}<small class="symbol">${escapeHTML(h.symbol)} · ${h.category}</small></span></div></td>
-          <td class="money">${numFormat(h.quantity)}</td>
-          <td class="money">${format(h.avgPrice)}</td>
-          <td class="money">${format(h.currentPrice)}</td>
-          <td class="money">${format(value)}</td>
-          <td class="money return ${r >= 0 ? "positive" : "negative"}">${r >= 0 ? "+" : ""}${r.toFixed(2)}%</td>
-          <td><button class="delete-button" data-index="${i}" aria-label="${escapeHTML(h.name)} 삭제">×</button></td>
-        </tr>`;
-      }).join("");
-    }
-
-    const emptyElem = document.querySelector("#empty-state");
-    if (emptyElem) emptyElem.hidden = holdings.length > 0;
-    const countElem = document.querySelector("#asset-count");
-    if (countElem) countElem.textContent = numFormat(holdings.length);
-
-    renderAllocation(total);
-  }
-
-  // --- 2. 뉴스 브리핑 로직 ---
-  function showBriefing(briefing) {
-    const loading = document.querySelector("#briefing-loading");
-    const content = document.querySelector("#briefing-content");
-    const tone = { positive: "긍정적", neutral: "중립", cautious: "주의" }[briefing.marketTone] || "중립";
-
-    const dateElem = document.querySelector("#briefing-date");
-    if (dateElem && briefing.generatedAt) {
-      dateElem.textContent = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(briefing.generatedAt));
-    }
-
-    if (content) {
-      content.innerHTML = `<div class="briefing-top">
-        <strong class="briefing-tone">${tone}</strong>
-        <p class="briefing-summary">${escapeHTML(briefing.summary)}</p>
-      </div>
-      <ul class="briefing-list">${(briefing.articles || []).map(article => `<li>
-        <a href="${escapeHTML(article.url)}" target="_blank" rel="noreferrer">${escapeHTML(article.title)}</a>
-        <p>${escapeHTML(article.takeaway)}</p>
-        <span class="briefing-source">${escapeHTML(article.source)}</span>
-      </li>`).join("")}</ul>`;
-    }
-    if (loading) loading.hidden = true;
-    if (content) content.hidden = false;
-  }
-
-  async function loadBriefing() {
-    const loading = document.querySelector("#briefing-loading");
-    const content = document.querySelector("#briefing-content");
-    
-    if (loading) {
-      loading.hidden = false;
-      loading.textContent = "최신 주식 뉴스를 불러오는 중입니다...";
-    }
-    if (content) content.hidden = true;
-
-    try {
-      const response = await fetch(`daily-briefing.json?t=${Date.now()}`);
-      if (!response.ok) throw new Error("No briefing yet");
-      showBriefing(await response.json());
-    } catch {
-      if (loading) loading.textContent = "아직 준비된 브리핑이 없습니다. (Actions 배포 상태를 확인해 주세요)";
-    }
-  }
-
-  // --- 3. 투자 시뮬레이터 로직 ---
-  // 입력 필드의 콤마(,)를 제거하고 순수 숫자만 추출하는 함수
-  const inputValue = id => {
-    const rawValue = document.getElementById(id)?.value.replace(/,/g, "") || "";
-    return Math.max(0, Number(rawValue) || 0);
-  };
-
-  // 실시간 3자리 콤마 포맷팅 처리 함수
-  function applyFormattedInput(inputElem) {
-    if (!inputElem) return;
-    const rawVal = inputElem.value.replace(/[^0-9]/g, ""); // 숫자 이외 제거
-    if (!rawVal) {
-      inputElem.value = "";
-      return;
-    }
-    inputElem.value = Number(rawVal).toLocaleString("ko-KR");
-  }
-
-  const shortCurrency = value => value >= 100000000 ? `₩${(value / 100000000).toFixed(value >= 1000000000 ? 1 : 2)}억` : won.format(value);
-
-  function drawChart(target, values, label) {
-    if (!target || !values.length) return;
-    const width = 520, height = 165, left = 12, right = 8, top = 12, bottom = 25;
-    const max = Math.max(...values.map(v => isNaN(v) ? 0 : v), 1), usableW = width - left - right, usableH = height - top - bottom;
-    const point = (value, index) => [left + usableW * index / Math.max(values.length - 1, 1), top + usableH * (1 - (value || 0) / max)];
-    const coords = values.map(point), line = coords.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
-    const area = `${line} L${coords.at(-1)[0].toFixed(1)},${top + usableH} L${left},${top + usableH} Z`;
-    const grid = [0, .5, 1].map(ratio => { const y = top + usableH * (1 - ratio); return `<line class="sim-gridline" x1="${left}" y1="${y}" x2="${width-right}" y2="${y}"/>`; }).join("");
-    const last = coords.at(-1), first = coords[0];
-    target.innerHTML = `<svg class="sim-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHTML(label)} 자산 추이"><title>${escapeHTML(label)} 자산 추이</title>${grid}<path class="sim-area" d="${area}"/><path class="sim-line" d="${line}"/><circle class="sim-dot" cx="${first[0]}" cy="${first[1]}" r="3"/><circle class="sim-dot" cx="${last[0]}" cy="${last[1]}" r="3"/><text class="sim-axis" x="${left}" y="${height-6}">시작</text><text class="sim-axis" x="${width-right}" y="${height-6}" text-anchor="end">${values.length - 1}년</text><text class="sim-axis" x="${width-right}" y="${top+9}" text-anchor="end">${shortCurrency(max)}</text></svg>`;
-  }
-
-  function renderDividend() {
-    const initial = inputValue("dividend-initial"), monthly = inputValue("dividend-monthly"), annualYield = inputValue("dividend-yield") / 100;
-    const years = Math.min(50, Math.max(1, Math.round(inputValue("dividend-years"))));
-    const reinvest = document.getElementById("dividend-reinvest")?.checked;
-    let principal = initial, cash = 0, dividendIncome = 0; const series = [initial];
-    for (let year = 1; year <= years; year++) {
-      for (let month = 0; month < 12; month++) {
-        principal += monthly;
-        const dividend = principal * annualYield / 12; dividendIncome += dividend;
-        if (reinvest) principal += dividend; else cash += dividend;
-      }
-      series.push(principal + cash);
-    }
-    const total = series.at(-1);
-    if (document.getElementById("dividend-total")) document.getElementById("dividend-total").textContent = shortCurrency(total);
-    if (document.getElementById("dividend-income")) document.getElementById("dividend-income").textContent = shortCurrency(dividendIncome);
-    if (document.getElementById("dividend-caption")) {
-      document.getElementById("dividend-caption").innerHTML = reinvest ? `배당금을 바로 재투자하는 가정입니다. 총 납입금 <b>${won.format(initial + monthly * years * 12)}</b>` : `배당금은 현금으로 보유하는 가정입니다. 총 납입금 <b>${won.format(initial + monthly * years * 12)}</b>`;
-    }
-    drawChart(document.getElementById("dividend-chart"), series, "배당 시뮬레이터");
-  }
-
-  function renderSp500() {
-    const initial = inputValue("sp-initial"), monthly = inputValue("sp-monthly"), exchangeRate = inputValue("sp-exchange-rate") || 1400, annualReturn = Number(document.getElementById("sp-return")?.value || 0) / 100;
-    const years = Math.min(50, Math.max(1, Math.round(inputValue("sp-years"))));
-    const monthlyReturn = Math.pow(1 + annualReturn, 1 / 12) - 1;
-    let balance = initial; const series = [balance];
-    for (let year = 1; year <= years; year++) { for (let month = 0; month < 12; month++) balance = (balance + monthly) * (1 + monthlyReturn); series.push(balance); }
-    const contributions = initial + monthly * years * 12, gains = balance - contributions;
-    if (document.getElementById("sp-total")) document.getElementById("sp-total").textContent = shortCurrency(balance * exchangeRate);
-    if (document.getElementById("sp-contribution")) document.getElementById("sp-contribution").textContent = shortCurrency(contributions * exchangeRate);
-    if (document.getElementById("sp-caption")) {
-      document.getElementById("sp-caption").innerHTML = `적용 환율 <b>${numFormat(exchangeRate)}원/USD</b> · 예상 수익 ${gains >= 0 ? "+" : ""}<b>${won.format(gains * exchangeRate)}</b> · $${numFormat(Math.round(balance))}`;
-    }
-    drawChart(document.getElementById("sp-chart"), series.map(value => value * exchangeRate), "S&P 500 시뮬레이터");
-  }
-
-  // --- 4. 이벤트 바인딩 및 초기화 (DOMContentLoaded) ---
-  document.addEventListener("DOMContentLoaded", () => {
-    // 모달 제어
-    const modal = document.querySelector("#asset-modal");
-    const openModalBtn = document.querySelector("#open-modal");
-    const emptyAddBtn = document.querySelector("#empty-add");
-    const closeModalBtn = document.querySelector("#close-modal");
-    const cancelModalBtn = document.querySelector("#cancel-modal");
-
-    const openModal = () => { if (modal) { modal.showModal(); document.querySelector("input[name=name]")?.focus(); } };
-    if (openModalBtn) openModalBtn.onclick = openModal;
-    if (emptyAddBtn) emptyAddBtn.onclick = openModal;
-    if (closeModalBtn) closeModalBtn.onclick = () => modal.close();
-    if (cancelModalBtn) cancelModalBtn.onclick = () => modal.close();
-
-    // 모달 바깥 배경 클릭 시 닫기
-    if (modal) {
-      modal.addEventListener("click", (e) => {
-        const rect = modal.getBoundingClientRect();
-        const isInDialog = (rect.top <= e.clientY && e.clientY <= rect.top + rect.height &&
-                            rect.left <= e.clientX && e.clientX <= rect.left + rect.width);
-        if (!isInDialog) modal.close();
-      });
-    }
-
-    // 자산 추가 폼 제출
-    const form = document.querySelector("#asset-form");
-    if (form) {
-      form.addEventListener("submit", event => {
-        event.preventDefault();
-        const data = new FormData(event.currentTarget);
-        holdings.push({
-          name: data.get("name").trim(),
-          symbol: data.get("symbol").trim().toUpperCase(),
-          category: data.get("category"),
-          quantity: Number(data.get("quantity")),
-          avgPrice: Number(data.get("avgPrice")),
-          currentPrice: Number(data.get("currentPrice"))
-        });
-        persist();
-        render();
-        event.currentTarget.reset();
-        modal.close();
-      });
-    }
-
-    // 자산 삭제
-    const holdingsBody = document.querySelector("#holdings-body");
-    if (holdingsBody) {
-      holdingsBody.addEventListener("click", event => {
-        const btn = event.target.closest(".delete-button");
-        if (!btn) return;
-        const index = btn.dataset.index;
-        if (index !== undefined) {
-          holdings.splice(Number(index), 1);
-          persist();
-          render();
-        }
-      });
-    }
-
-    // 백업 내보내기
-    const downloadBtn = document.querySelector("#download-button");
-    if (downloadBtn) {
-      downloadBtn.onclick = () => {
-        const file = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), holdings }, null, 2)], { type: "application/json" });
-        const url = URL.createObjectURL(file);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = "portfolio-backup.json";
-        link.click();
-        URL.revokeObjectURL(url);
-      };
-    }
-
-    // 뉴스 새로고침 버튼
-    const refreshBtn = document.querySelector("#refresh-briefing");
-    if (refreshBtn) {
-      refreshBtn.addEventListener("click", () => {
-        loadBriefing();
-      });
-    }
-
-    // --- 금액 입력 필드 실시간 3자리 콤마 바인딩 ---
-    const moneyInputIds = [
-      "dividend-initial", "dividend-monthly",
-      "sp-initial", "sp-monthly", "sp-exchange-rate"
-    ];
-
-    moneyInputIds.forEach(id => {
-      const elem = document.getElementById(id);
-      if (elem) {
-        // 초기값 포맷 적용
-        applyFormattedInput(elem);
-
-        // 입력 시 실시간 포맷팅 및 시뮬레이션 갱신
-        elem.addEventListener("input", e => {
-          applyFormattedInput(e.target);
-          renderDividend();
-          renderSp500();
-        });
-      }
-    });
-
-    // 기타 숫 자 필드 변경 시 계산 연결
-    ["dividend-yield", "dividend-years", "dividend-reinvest"].forEach(id => {
-      document.getElementById(id)?.addEventListener("input", renderDividend);
-    });
-    ["sp-return", "sp-years"].forEach(id => {
-      document.getElementById(id)?.addEventListener("input", renderSp500);
-    });
-
-    // 초기화 렌더링 실행
-    render();
-    loadBriefing();
-    renderDividend();
-    renderSp500();
-    
-    // 스크롤 시 사이드바 자동 메뉴 하이라이트
-    const navLinks = document.querySelectorAll(".nav-link");
-    const sections = document.querySelectorAll("main > section[id]");
-
-    const observerOptions = {
-      root: null,
-      rootMargin: "-20% 0px -60% 0px",
-      threshold: 0
-    };
-
-    const observer = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          const currentId = entry.target.getAttribute("id");
-          navLinks.forEach(link => {
-            if (link.getAttribute("href") === `#${currentId}`) {
-              link.classList.add("active");
-            } else {
-              link.classList.remove("active");
-            }
-          });
-        }
-      });
-    }, observerOptions);
-
-    sections.forEach(section => observer.observe(section));
   });
-})();
+
+  const totalProfit = totalCurrent - totalInvested;
+  const totalProfitRate = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
+
+  // 요약 카드 업데이트
+  const netWorthElem = document.getElementById("net-worth");
+  if (netWorthElem) netWorthElem.textContent = won.format(totalCurrent);
+
+  const investedValueElem = document.getElementById("invested-value");
+  if (investedValueElem) investedValueElem.textContent = won.format(totalInvested);
+
+  const cashValueElem = document.getElementById("cash-value");
+  if (cashValueElem) cashValueElem.textContent = won.format(cashTotal);
+
+  const monthlyProfitElem = document.getElementById("monthly-profit");
+  if (monthlyProfitElem) {
+    const profitClass = totalProfit > 0 ? "trend-up" : totalProfit < 0 ? "trend-down" : "";
+    monthlyProfitElem.className = profitClass;
+    monthlyProfitElem.textContent = `${totalProfit > 0 ? "+" : ""}${won.format(totalProfit)} (${totalProfitRate.toFixed(2)}%)`;
+  }
+
+  // 자산 배분 비중 업데이트
+  renderAllocation(totalCurrent, stockTotal, cashTotal);
+
+  // 🎯 목표 자산 달성률 업데이트
+  renderGoal(totalCurrent);
+
+  saveAssets();
+}
+
+// 4. 자산 배분 UI 렌더링
+function renderAllocation(total, stock, cash) {
+  const countElem = document.getElementById("asset-count");
+  if (countElem) countElem.textContent = assets.length;
+
+  const legendElem = document.getElementById("legend");
+  if (!legendElem) return;
+
+  const stockPct = total > 0 ? ((stock / total) * 100).toFixed(1) : 0;
+  const cashPct = total > 0 ? ((cash / total) * 100).toFixed(1) : 0;
+
+  legendElem.innerHTML = `
+    <li><span class="dot stock"></span> 주식: <b>${stockPct}%</b> (${won.format(stock)})</li>
+    <li><span class="dot cash"></span> 현금: <b>${cashPct}%</b> (${won.format(cash)})</li>
+  `;
+
+  // 도넛 차트 백그라운드 표현 (CSS conic-gradient)
+  const donutElem = document.getElementById("donut");
+  if (donutElem) {
+    donutElem.style.background = `conic-gradient(#8a7cff 0% ${stockPct}%, #55dfb2 ${stockPct}% 100%)`;
+  }
+}
+
+// 5. 🎯 목표 자산 달성률 계산 및 렌더링
+function renderGoal(total) {
+  const targetInput = document.getElementById("target-amount");
+  if (!targetInput) return;
+
+  const targetVal = Number(targetInput.value.replace(/,/g, "")) || 0;
+  const percent = targetVal > 0 ? Math.min(100, (total / targetVal) * 100) : 0;
+  const remaining = Math.max(0, targetVal - total);
+
+  const percentElem = document.getElementById("goal-percent-text");
+  const remainingElem = document.getElementById("goal-remaining-text");
+  const barFill = document.getElementById("goal-bar-fill");
+
+  if (percentElem) percentElem.textContent = `${percent.toFixed(1)}% 달성`;
+  if (remainingElem) {
+    remainingElem.textContent = remaining > 0 ? `목표까지 ${won.format(remaining)} 남음` : "🎉 목표를 달성했습니다!";
+  }
+  if (barFill) barFill.style.width = `${percent}%`;
+}
+
+// 6. 자산 삭제
+function deleteAsset(id) {
+  assets = assets.filter((item) => item.id !== id);
+  render();
+}
+
+// 7. 자산 추가 모달 제어
+function openModal() {
+  const modal = document.getElementById("asset-modal");
+  if (modal) modal.style.display = "flex";
+}
+
+function closeModal() {
+  const modal = document.getElementById("asset-modal");
+  if (modal) modal.style.display = "none";
+}
+
+// 8. 숫자 입력 시 콤마 자동 적용 포맷터
+function applyFormattedInput(input) {
+  let val = input.value.replace(/,/g, "").replace(/[^0-9]/g, "");
+  if (val) {
+    input.value = Number(val).toLocaleString();
+  } else {
+    input.value = "";
+  }
+}
+
+// 9. 데이터 내보내기 / 불러오기 백업
+function exportData() {
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(assets, null, 2));
+  const dlAnchorElem = document.createElement("a");
+  dlAnchorElem.setAttribute("href", dataStr);
+  dlAnchorElem.setAttribute("download", `portfolio-backup-${new Date().toISOString().slice(0, 10)}.json`);
+  dlAnchorElem.click();
+}
+
+// 10. DOM 로드 후 이벤트 바인딩
+document.addEventListener("DOMContentLoaded", () => {
+  render();
+
+  // 모달 폼 제출
+  const form = document.getElementById("asset-form");
+  if (form) {
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const name = document.getElementById("asset-name").value;
+      const category = document.getElementById("asset-category").value;
+      const qty = Number(document.getElementById("asset-qty").value.replace(/,/g, "")) || 0;
+      const buyPrice = Number(document.getElementById("asset-buy-price").value.replace(/,/g, "")) || 0;
+      const currentPrice = Number(document.getElementById("asset-current-price").value.replace(/,/g, "")) || buyPrice;
+
+      if (!name || qty <= 0) {
+        alert("올바른 자산 이름과 수량을 입력해 주세요.");
+        return;
+      }
+
+      assets.push({
+        id: Date.now(),
+        name,
+        category,
+        qty,
+        buyPrice,
+        currentPrice
+      });
+
+      form.reset();
+      closeModal();
+      render();
+    });
+  }
+
+  // 금액 입력창 천단위 콤마 실시간 바인딩
+  const moneyInputIds = [
+    "dividend-initial", "dividend-monthly",
+    "sp-initial", "sp-monthly", "sp-exchange-rate",
+    "target-amount", "asset-qty", "asset-buy-price", "asset-current-price"
+  ];
+
+  moneyInputIds.forEach((id) => {
+    const elem = document.getElementById(id);
+    if (elem) {
+      applyFormattedInput(elem);
+      elem.addEventListener("input", (e) => {
+        applyFormattedInput(e.target);
+        render(); // 목표 달성률 및 요약 카드 즉시 재계산
+      });
+    }
+  });
+});
