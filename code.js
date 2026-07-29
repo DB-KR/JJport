@@ -9,7 +9,7 @@
   // 통화 및 숫자 포맷터 (3자리마다 콤마 적용)
   const won = new Intl.NumberFormat("ko-KR", { style: "currency", currency: "KRW", maximumFractionDigits: 0 });
   const format = value => won.format(value || 0);
-  const numFormat = value => (Number(value) || 0).toLocaleString("ko-KR");
+  const numFormat = value => (Number(value) || 0).toLocaleString("ko-KR"); // 순수 숫자 3자리 콤마 헬퍼
 
   const colors = ["#978cff", "#55dfb2", "#ffb86b", "#5bbcff", "#ed8cc5", "#d5cf79"];
   const THIRTY_MEAN_NET_WORTH = 221580000;
@@ -179,13 +179,11 @@
   // --- 3. 투자 시뮬레이터 로직 ---
   // 입력 필드의 콤마(,)를 제거하고 순수 숫자만 추출하는 함수
   const inputValue = id => {
-    const el = document.getElementById(id);
-    if (!el) return 0;
-    const rawValue = el.value.replace(/,/g, "");
+    const rawValue = document.getElementById(id)?.value.replace(/,/g, "") || "";
     return Math.max(0, Number(rawValue) || 0);
   };
 
-  // 실시간 3자리 콤마 포맷팅 처리 함수
+  // input 입력 시 실시간으로 3자리 콤마 포맷팅을 적용해 주는 함수
   function applyFormattedInput(inputElem) {
     if (!inputElem) return;
     const rawVal = inputElem.value.replace(/[^0-9]/g, ""); // 숫자 이외 제거
@@ -334,7 +332,7 @@
       });
     }
 
-    // --- 금액 입력 필드 실시간 3자리 콤마 바인딩 ---
+    // --- 금액/수량 입력 필드 실시간 3자리 콤마 바인딩 ---
     const moneyInputIds = [
       "dividend-initial", "dividend-monthly",
       "sp-initial", "sp-monthly", "sp-exchange-rate"
@@ -343,23 +341,20 @@
     moneyInputIds.forEach(id => {
       const elem = document.getElementById(id);
       if (elem) {
-        // 초기값 포맷 적용
+        // 초기값 포맷팅
         applyFormattedInput(elem);
-
-        // 입력 이벤트
+        // 타이핑 시 실시간 콤마 적용
         elem.addEventListener("input", e => {
           applyFormattedInput(e.target);
-          renderDividend();
-          renderSp500();
         });
       }
     });
 
-    // 기타 수치 필드(연이율, 투자기간 등) 변경 시 계산
-    ["dividend-yield", "dividend-years", "dividend-reinvest"].forEach(id => {
+    // 시뮬레이터 재계산 이벤트 연결
+    ["dividend-initial", "dividend-monthly", "dividend-yield", "dividend-years", "dividend-reinvest"].forEach(id => {
       document.getElementById(id)?.addEventListener("input", renderDividend);
     });
-    ["sp-return", "sp-years"].forEach(id => {
+    ["sp-initial", "sp-monthly", "sp-exchange-rate", "sp-return", "sp-years"].forEach(id => {
       document.getElementById(id)?.addEventListener("input", renderSp500);
     });
 
