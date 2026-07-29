@@ -303,32 +303,96 @@ function calculateSp500Sim() {
   }
 }
 
-// ---------------------------------------------------------
-// 🔄 실시간 통합 계산 실행 및 이벤트 바인딩
-// ---------------------------------------------------------
-function runAllSimulators() {
-  try {
-    calculateDividendSim();
-    calculateSp500Sim();
-  } catch (e) {
-    console.error("시뮬레이터 계산 중 오류:", e);
+// =========================================================
+// 📈 투자 시뮬레이터 (배당 & S&P 500) 직관적 자동 바인딩 로직
+// =========================================================
+
+function runInvestmentSimulators() {
+  // 모든 input 요소를 순서대로 수집
+  const inputs = Array.from(document.querySelectorAll('.simulator-container input, #simulator input, input'));
+  
+  // 숫자로 변환하는 안심 함수
+  const toNum = (val) => {
+    if (!val) return 0;
+    const clean = String(val).replace(/,/g, "").trim();
+    const n = parseFloat(clean);
+    return isNaN(n) ? 0 : n;
+  };
+
+  // 숫자를 원화 텍스트로 변환
+  const toKRW = (num) => "₩" + Math.round(num).toLocaleString("ko-KR");
+
+  // ---------------------------------------------------------
+  // 1. 배당 시뮬레이터 계산
+  // ---------------------------------------------------------
+  // 순서대로: 초기투자금(원), 월추가투자(원), 연배당수익률(%), 투자기간(년)
+  const divInit = toNum(inputs[0]?.value);
+  const divMonthly = toNum(inputs[1]?.value);
+  const divYield = toNum(inputs[2]?.value) / 100;
+  const divYears = toNum(inputs[3]?.value);
+  
+  // 배당 재투자 체크박스
+  const checkbox = document.querySelector('input[type="checkbox"]');
+  const isReinvest = checkbox ? checkbox.checked : true;
+
+  let divTotalAsset = divInit;
+  let divTotalAccumulated = 0;
+  const monthlyYield = divYield / 12;
+
+  for (let m = 1; m <= divYears * 12; m++) {
+    const currentDiv = divTotalAsset * monthlyYield;
+    divTotalAccumulated += currentDiv;
+    if (isReinvest) {
+      divTotalAsset += currentDiv;
+    }
+    divTotalAsset += divMonthly;
+  }
+
+  // ---------------------------------------------------------
+  // 2. S&P 500 시뮬레이터 계산
+  // ---------------------------------------------------------
+  // 순서대로: 초기투자금(USD), 월추가투자(USD), 환율, 연수익률(%), 투자기간(년)
+  const spInitUsd = toNum(inputs[4]?.value);
+  const spMonthlyUsd = toNum(inputs[5]?.value);
+  const spFx = toNum(inputs[6]?.value);
+  const spReturn = toNum(inputs[7]?.value) / 100;
+  const spYears = toNum(inputs[8]?.value);
+
+  const monthlyReturn = spReturn / 12;
+  let spTotalAssetUsd = spInitUsd;
+  let spTotalDepositedUsd = spInitUsd + (spMonthlyUsd * spYears * 12);
+
+  for (let m = 1; m <= spYears * 12; m++) {
+    spTotalAssetUsd = spTotalAssetUsd * (1 + monthlyReturn) + spMonthlyUsd;
+  }
+
+  const spTotalAssetKrw = spTotalAssetUsd * spFx;
+  const spTotalDepositedKrw = spTotalDepositedUsd * spFx;
+
+  // ---------------------------------------------------------
+  // 3. 화면의 ₩ 출력 위치에 결과값 바인딩
+  // ---------------------------------------------------------
+  // 화면 전체에서 결과가 들어갈 ₩ 표시 엘리먼트 4개를 탐색
+  const allElements = Array.from(document.querySelectorAll('*'));
+  const targetOutputs = allElements.filter(el => {
+    return el.children.length === 0 && (el.textContent.trim().startsWith('₩') || el.textContent.trim() === '₩0');
+  });
+
+  // 순서대로 값 대입 (0: 배당 예상자산, 1: 누적배당금, 2: S&P 예상자산, 3: 총납입금)
+  if (targetOutputs.length >= 4) {
+    targetOutputs[0].textContent = toKRW(divTotalAsset);
+    targetOutputs[1].textContent = toKRW(divTotalAccumulated);
+    targetOutputs[2].textContent = toKRW(spTotalAssetKrw);
+    targetOutputs[3].textContent = toKRW(spTotalDepositedKrw);
   }
 }
 
+// 이벤트 바인딩
 document.addEventListener("DOMContentLoaded", () => {
-  // 1. 처음 페이지 열릴 때 자동 1회 계산
-  setTimeout(runAllSimulators, 300);
+  // DOM 로드 후 실행
+  setTimeout(runInvestmentSimulators, 200);
 
-  // 2. 입력창의 값이 바뀔 때마다 (타이핑/체크박스 변경 시) 실시간 자동 재계산
-  document.addEventListener("input", (e) => {
-    if (e.target.tagName === "INPUT") {
-      runAllSimulators();
-    }
-  });
-
-  document.addEventListener("change", (e) => {
-    if (e.target.tagName === "INPUT") {
-      runAllSimulators();
-    }
-  });
+  // 화면의 모든 입력값이 바뀔 때마다 실시간 계산
+  document.addEventListener("input", runInvestmentSimulators);
+  document.addEventListener("change", runInvestmentSimulators);
 });
