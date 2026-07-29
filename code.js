@@ -648,3 +648,246 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 })();
+
+// =========================================================
+// 📜 [매수/매도 이력 기반 이동평균법 계산 + 달러 수익률 + 기간별 손익]
+// =========================================================
+
+(function initTransactionEngine() {
+  let transactions = JSON.parse(localStorage.getItem("portfolio_txs") || "[]");
+  let liveUsdKrwRate = 1400;
+
+  // 1. 실시간 환율 연동
+  async function fetchLiveRate() {
+    try {
+      const res = await fetch("https://open.er-api.com/v6/latest/USD");
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.rates?.KRW) liveUsdKrwRate = data.rates.KRW;
+      }
+    } catch (e) {
+      console.warn("환율 API 수신 지연 중");
+    }
+  }
+
+  // 2. 모달 제어
+  const modal = document.getElementById("tx-modal");
+  const openBtn = document.getElementById("open-tx-modal");
+  const closeBtn = document.getElementById("close-tx-modal");
+  const cancelBtn = document.getElementById("cancel-tx-modal");
+  const form = document.getElementById("tx-form");
+  const dateInput = document.getElementById("tx-date");
+
+  if (dateInput) {
+    dateInput.value = new Date().toISOString().substring(0, 10);
+  }
+
+  if (openBtn) openBtn.onclick = () => modal.showModal();
+  if (closeBtn) closeBtn.onclick = () => modal.close();
+  if (cancelBtn) cancelBtn.onclick = () => modal.close();
+
+  // 3. 폼 제출 시 매수/매도 저장
+  if (form) {
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      const formData = new FormData(form);
+      const newTx = {
+        id: Date.now(),
+        date: formData.get("date"),
+        type: formData.get("type"), // BUY / SELL
+        name: formData.get("name").trim(),
+        category: formData.get("category"),
+        currency: formData.get("currency"),
+        quantity: parseFloat(formData.get("quantity")),
+        price: parseFloat(formData.get("price")),
+        currentPrice: parseFloat(formData.get("currentPrice"))
+      };
+
+      transactions.push(newTx);
+      saveAndRender();
+      form.reset();
+      if (dateInput) dateInput.value = new Date().toISOString().substring(0, 10);
+      modal.close();
+    };
+  }
+
+  // 거래 삭제
+  window.deleteTransaction = function(id) {
+    transactions = transactions.filter(t => t.id !== id);
+    saveAndRender();
+  };
+
+  function saveAndRender() {
+    localStorage.setItem("portfolio_txs", JSON.stringify(transactions));
+    renderAll();
+  }
+
+  // 4. 보유 자산(이동평균법 매입가 계산) & 실현 손익 정산
+  function processPortfolio() {
+    const holdingsMap = {};
+    const realizedPnl = { month: { krw: 0, usd: 0 }, quarter: { krw: 0, usd: 0 }, year: { krw: 0, usd: 0 } };
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const currentQuarter = Math.floor(currentMonth / 3);
+
+    // 날짜 오름차순 정렬
+    const sortedTxs = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    sortedTxs.forEach(tx => {
+      const isUsd = tx.currency === "USD";
+      if (!holdingsMap[tx.name]) {
+        holdingsMap[tx.name] = {
+          name: tx.name,
+          category: tx.category,
+          currency: tx.currency,
+          qty: 0,
+          avgPrice: 0, // 매입단가
+          currentPrice: tx.currentPrice
+        };
+      }
+
+      const item = holdingsMap[tx.name];
+      item.currentPrice = tx.currentPrice; // 최신 시세 업데이트
+
+      if (tx.type === "BUY") {
+        // 이동평균 총액 및 단가 계산
+        const totalCost = (item.qty * item.avgPrice) + (tx.quantity * tx.price);
+        item.qty += tx.quantity;
+        item.avgPrice = item.qty > 0 ? totalCost / item.qty : 0;
+      } else if (tx.type === "SELL") {
+        // 매도에 따른 실현 손익 계산
+        const sellQty = Math.min(tx.quantity, item.qty);
+        const pnlPerUnit = tx.price - item.avgPrice;
+        const profit = pnlPerUnit * sellQty;
+
+        const txDate = new Date(tx.date);
+        const txYear = txDate.getFullYear();
+        const txMonth = txDate.getMonth();
+        const txQuarter = Math.floor(txMonth / 3);
+
+        const profitUsd = isUsd ? profit : profit / liveUsdKrwRate;
+        const profitKrw = isUsd ? profit * liveUsdKrwRate : profit;
+
+        // 기간별 매도 손익 집계
+        if (txYear === currentYear) {
+          realizedPnl.year.usd += profitUsd;
+          realizedPnl.year.krw += profitKrw;
+
+          if (txQuarter === currentQuarter) {
+            realizedPnl.quarter.usd += profitUsd;
+            realizedPnl.quarter.krw += profitKrw;
+          }
+          if (txMonth === currentMonth) {
+            realizedPnl.month.usd += profitUsd;
+            realizedPnl.month.krw += profitKrw;
+          }
+        }
+
+        item.qty -= sellQty;
+      }
+    });
+
+    return { holdingsMap, realizedPnl };
+  }
+
+  // 5. 화면 렌더링
+  function renderAll() {
+    const { holdingsMap, realizedPnl } = processPortfolio();
+
+    // A. 거래 내역 테이블 렌더링
+    const txBody = document.getElementById("tx-history-body");
+    if (txBody) {
+      if (transactions.length === 0) {
+        txBody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:#64748b; padding:20px;">기록된 거래 내역이 없습니다.</td></tr>`;
+      } else {
+        txBody.innerHTML = [...transactions].reverse().map(t => {
+          const isBuy = t.type === "BUY";
+          const symbol = t.currency === "USD" ? "$" : "₩";
+          const total = t.quantity * t.price;
+          return `
+            <tr>
+              <td>${t.date}</td>
+              <td><span style="color:${isBuy ? '#10b981' : '#ef4444'}; font-weight:bold;">${isBuy ? '매수' : '매도'}</span></td>
+              <td><b>${t.name}</b></td>
+              <td>${t.currency}</td>
+              <td>${t.quantity.toLocaleString("ko-KR")}</td>
+              <td>${symbol}${t.price.toLocaleString("ko-KR")}</td>
+              <td>${symbol}${total.toLocaleString("ko-KR")}</td>
+              <td><button onclick="deleteTransaction(${t.id})" style="background:none; border:none; color:#ef4444; cursor:pointer;">삭제</button></td>
+            </tr>
+          `;
+        }).join("");
+      }
+    }
+
+    // B. 보유 자산 테이블 렌더링 (달러 수익률 연산 포함)
+    const holdingsBody = document.getElementById("holdings-body");
+    const emptyState = document.getElementById("empty-state");
+    const activeHoldings = Object.values(holdingsMap).filter(h => h.qty > 0);
+
+    if (holdingsBody) {
+      if (activeHoldings.length === 0) {
+        holdingsBody.innerHTML = "";
+        if (emptyState) emptyState.style.display = "block";
+      } else {
+        if (emptyState) emptyState.style.display = "none";
+        holdingsBody.innerHTML = activeHoldings.map(h => {
+          const isUsd = h.currency === "USD";
+          
+          // 달러 및 원화 평가액 계산
+          const totalUsd = isUsd ? h.qty * h.currentPrice : (h.qty * h.currentPrice) / liveUsdKrwRate;
+          const totalKrw = isUsd ? (h.qty * h.currentPrice) * liveUsdKrwRate : h.qty * h.currentPrice;
+
+          // 달러 손익 계산 (%)
+          const costUsd = isUsd ? h.qty * h.avgPrice : (h.qty * h.avgPrice) / liveUsdKrwRate;
+          const profitUsd = totalUsd - costUsd;
+          const profitRateUsd = costUsd > 0 ? (profitUsd / costUsd) * 100 : 0;
+
+          // 원화 손익 계산 (%)
+          const costKrw = isUsd ? (h.qty * h.avgPrice) * liveUsdKrwRate : h.qty * h.avgPrice;
+          const profitKrw = totalKrw - costKrw;
+          const profitRateKrw = costKrw > 0 ? (profitKrw / costKrw) * 100 : 0;
+
+          const colorUsd = profitUsd >= 0 ? "#10b981" : "#ef4444";
+          const colorKrw = profitKrw >= 0 ? "#10b981" : "#ef4444";
+
+          return `
+            <tr data-category="${h.category}" data-currency="${h.currency}" data-quantity="${h.qty}" data-current-price="${h.currentPrice}">
+              <td><b>${h.name}</b></td>
+              <td><small style="background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">${h.category}</small></td>
+              <td>${h.qty.toLocaleString("ko-KR")}</td>
+              <td>${isUsd ? '$' : '₩'}${h.avgPrice.toLocaleString("ko-KR")}</td>
+              <td>${isUsd ? '$' : '₩'}${h.currentPrice.toLocaleString("ko-KR")}</td>
+              <td><b>₩${Math.round(totalKrw).toLocaleString("ko-KR")}</b> <br/><small style="color:#64748b;">($${totalUsd.toFixed(2)})</small></td>
+              <td style="color:${colorKrw}"><b>${profitRateKrw.toFixed(2)}%</b><br/><small>₩${Math.round(profitKrw).toLocaleString("ko-KR")}</small></td>
+              <td style="color:${colorUsd}"><b>${profitRateUsd.toFixed(2)}%</b><br/><small>$${profitUsd.toFixed(2)}</small></td>
+            </tr>
+          `;
+        }).join("");
+      }
+    }
+
+    // C. 기간별 손익 카드 업데이트
+    const fmtPnl = (pnl) => {
+      const color = pnl.krw >= 0 ? "#10b981" : "#ef4444";
+      const sign = pnl.krw >= 0 ? "+" : "";
+      return `<span style="color:${color}">${sign}₩${Math.round(pnl.krw).toLocaleString("ko-KR")} <small style="font-size:0.8rem;">(${sign}$${pnl.usd.toFixed(2)})</small></span>`;
+    };
+
+    const monthEl = document.getElementById("pnl-month");
+    const quarterEl = document.getElementById("pnl-quarter");
+    const yearEl = document.getElementById("pnl-year");
+
+    if (monthEl) monthEl.innerHTML = fmtPnl(realizedPnl.month);
+    if (quarterEl) quarterEl.innerHTML = fmtPnl(realizedPnl.quarter);
+    if (yearEl) yearEl.innerHTML = fmtPnl(realizedPnl.year);
+  }
+
+  // 초기화
+  window.addEventListener("load", async () => {
+    await fetchLiveRate();
+    renderAll();
+  });
+})();
