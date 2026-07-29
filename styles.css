@@ -332,3 +332,77 @@ table th,
   border-bottom: 1px solid #334155;     /* 테이블 경계선 톤 통일 */
   letter-spacing: -0.02em;              /* 자간 정돈 */
 }
+
+/* =========================================================
+   🎮 시뮬레이터 구역 폰트 및 UI 스타일 통일
+   ========================================================= */
+
+/* 1. 시뮬레이터 전체 기본 폰트 상속 */
+#simulator, 
+.simulator-container,
+.simulator-box {
+  font-family: inherit !important;
+  color: #f8fafc;
+}
+
+/* 2. 시뮬레이터 제목 / 서브 타이틀 */
+#simulator h2, 
+#simulator h3, 
+.simulator-title {
+  font-family: inherit !important;
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
+}
+
+/* 3. 입력 폼 라벨 (텍스트 가독성 개선) */
+#simulator label {
+  font-family: inherit !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  color: #94a3b8 !important; /* 깔끔한 보조 텍스트 톤 */
+  margin-bottom: 6px;
+  display: block;
+}
+
+/* 4. 입력창(Input, Select) 폰트 및 스타일 */
+#simulator input, 
+#simulator select, 
+#simulator textarea {
+  font-family: inherit !important;
+  font-size: 0.95rem !important;
+  font-weight: 500 !important;
+  color: #f8fafc !important;
+  background-color: #0f172a !important;
+  border: 1px solid #334155 !important;
+  border-radius: 8px;
+  padding: 10px 12px;
+  letter-spacing: -0.01em;
+}
+
+#simulator input::placeholder {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+/* 5. 시뮬레이터 내부 결과값 / 숫자 강조 */
+#simulator .result-value,
+#simulator .sim-output {
+  font-family: inherit !important;
+  font-size: 1.15rem !important;
+  font-weight: 700 !important;
+  color: #38bdf8 !important; /* 주요 포인트 색상 */
+  letter-spacing: -0.02em;
+}
+
+/* 6. 시뮬레이터 실행/계산 버튼 */
+#simulator button,
+.sim-btn {
+  font-family: inherit !important;
+  font-size: 0.95rem !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em;
+  padding: 10px 16px;
+  border-radius: 8px;
+}
