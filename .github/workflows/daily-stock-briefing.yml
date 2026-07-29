@@ -1,12 +1,10 @@
-name: Create 07:00 and 22:00 KST stock briefing
+name: Create 07:00 and 22:00 KST stock briefing (RSS Direct)
 
 on:
   schedule:
-    # 한국 시간 기준 오전 7시 (UTC 22:00)
     - cron: '0 22 * * *'
-    # 한국 시간 기준 밤 10시 (UTC 13:00)
     - cron: '0 13 * * *'
-  workflow_dispatch: # 수동 실행(Run workflow) 버튼 활성화
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -29,9 +27,7 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Generate daily briefing via OpenAI
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      - name: Fetch Live News via RSS
         run: |
           node -e '
           const fs = require("fs");
@@ -52,55 +48,29 @@ jobs:
           async function run() {
             try {
               const xml = await fetchRSS(RSS_URL);
-              const items = [];
+              const articles = [];
               const matches = xml.matchAll(/<item>[\s\S]*?<title>(.*?)<\/title>[\s\S]*?<link>(.*?)<\/link>/g);
               for (const m of matches) {
-                if (items.length >= 8) break;
-                items.push({ title: m[1].replace(/<!\[CDATA\[(.*?)\]\]>/g, "$1"), url: m[2] });
+                if (articles.length >= 5) break;
+                let title = m[1].replace(/<!\[CDATA\[(.*?)\]\]>/g, "$1")
+                               .replace(/&quot;/g, "\"")
+                               .replace(/&amp;/g, "&");
+                articles.push({
+                  title: title,
+                  takeaway: "최신 실시간 주식 관련 뉴스입니다.",
+                  source: "Google News",
+                  url: m[2]
+                });
               }
 
-              const prompt = `다음 뉴스 목록에서 오늘 주식 시장에서 가장 중요한 뉴스 3개를 엄선하고 전체 시장 톤(positive/neutral/cautious)과 1줄 요약을 작성해줘.
-              뉴스 목록: ${JSON.stringify(items)}
-              
-              응답은 반드시 아래 JSON 형식으로만 출력해:
-              {
-                "marketTone": "positive|neutral|cautious",
-                "summary": "전체 시장 요약 한문장",
-                "articles": [
-                  { "title": "뉴스제목", "takeaway": "핵심 내용 1문장 요약", "source": "출처", "url": "링크" }
-                ]
-              }`;
+              const briefingData = {
+                generatedAt: new Date().toISOString(),
+                marketTone: "neutral",
+                summary: "실시간 RSS 뉴스 피드 수집 결과입니다.",
+                articles: articles
+              };
 
-              const req = https.request("https://api.openai.com/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
-                }
-              }, (res) => {
-                let body = "";
-                res.on("data", c => body += c);
-                res.on("end", () => {
-                  try {
-                    const result = JSON.parse(body);
-                    const content = JSON.parse(result.choices[0].message.content);
-                    content.generatedAt = new Date().toISOString();
-                    fs.writeFileSync("daily-briefing.json", JSON.stringify(content, null, 2));
-                    console.log("Briefing generated successfully!");
-                  } catch (e) {
-                    console.error("Failed to parse response:", body);
-                    process.exit(1);
-                  }
-                });
-              });
-
-              req.write(JSON.stringify({
-                model: "gpt-4o-mini",
-                messages: [{ role: "user", content: prompt }],
-                response_format: { type: "json_object" }
-              }));
-              req.end();
-
+              fs.writeFileSync("daily-briefing.json", JSON.stringify(briefingData, null, 2));
             } catch (err) {
               console.error(err);
               process.exit(1);
