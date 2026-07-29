@@ -394,3 +394,257 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 })();
+
+// =========================================================
+// 🚀 [1, 2, 4 통합] 환율연동, 자산배분 도넛차트, 리밸런싱 계산기
+// =========================================================
+
+(function initAdvancedPortfolioFeatures() {
+  let liveUsdKrwRate = 1400; // 기본 고정 환율 (API 로딩 전 백업)
+  let allocationChartInstance = null;
+
+  // 자산 분류별 테마 색상 정의
+  const categoryColors = {
+    "국내주식": "#6366f1",
+    "해외주식": "#10b981",
+    "ETF": "#f59e0b",
+    "채권": "#3b82f6",
+    "가상자산": "#ec4899",
+    "현금": "#64748b"
+  };
+
+  // 1️⃣ 실시간 환율 수신
+  async function updateExchangeRate() {
+    try {
+      const res = await fetch("https://open.er-api.com/v6/latest/USD");
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.rates?.KRW) {
+          liveUsdKrwRate = data.rates.KRW;
+        }
+      }
+    } catch (e) {
+      console.warn("환율 수신 실패, 기본 환율 적용 중", e);
+    }
+  }
+
+  // Helper: DOM에서 자산 테이블 데이터 읽어오기 (원화 변환 포함)
+  function getHoldingsData() {
+    const rows = document.querySelectorAll("#holdings-body tr");
+    const holdings = [];
+
+    rows.forEach(row => {
+      const name = row.cells[0]?.textContent?.trim() || "";
+      const category = row.dataset.category || "국내주식"; 
+      const isUsd = row.dataset.currency === "USD" || category === "해외주식";
+      
+      const qty = parseFloat(row.dataset.quantity) || 0;
+      const curPriceRaw = parseFloat(row.dataset.currentPrice) || 0;
+
+      // 달러 가격인 경우 원화로 실시간 계산
+      const curPriceKrw = isUsd ? curPriceRaw * liveUsdKrwRate : curPriceRaw;
+      const totalValueKrw = qty * curPriceKrw;
+
+      if (totalValueKrw > 0) {
+        holdings.push({
+          name,
+          category,
+          isUsd,
+          totalValueKrw
+        });
+      }
+    });
+
+    return holdings;
+  }
+
+  // 2️⃣ 자산 배분 도넛 차트 시각화
+  function renderAllocationChart(holdings) {
+    const canvas = document.getElementById("allocationCanvas");
+    const legendEl = document.getElementById("legend");
+    const countEl = document.getElementById("asset-count");
+
+    if (countEl) countEl.textContent = holdings.length;
+    if (!canvas || typeof Chart === "undefined") return;
+
+    // 카테고리별 합산
+    const catTotals = {};
+    let grandTotal = 0;
+
+    holdings.forEach(h => {
+      catTotals[h.category] = (catTotals[h.category] || 0) + h.totalValueKrw;
+      grandTotal += h.totalValueKrw;
+    });
+
+    const labels = Object.keys(catTotals);
+    const dataValues = Object.values(catTotals);
+    const backgroundColors = labels.map(label => categoryColors[label] || "#94a3b8");
+
+    // 범례(Legend) HTML 업데이트
+    if (legendEl) {
+      if (labels.length === 0) {
+        legendEl.innerHTML = `<li style="color: #64748b;">등록된 자산이 없습니다.</li>`;
+      } else {
+        legendEl.innerHTML = labels.map((cat, idx) => {
+          const ratio = grandTotal > 0 ? ((dataValues[idx] / grandTotal) * 100).toFixed(1) : 0;
+          return `
+            <li style="display: flex; align-items: center; justify-content: space-between;">
+              <span style="display: flex; align-items: center; gap: 6px;">
+                <i style="display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: ${backgroundColors[idx]};"></i>
+                ${cat}
+              </span>
+              <strong style="color: #f8fafc;">${ratio}%</strong>
+            </li>
+          `;
+        }).join("");
+      }
+    }
+
+    // 도넛 차트 그려주기
+    if (allocationChartInstance) {
+      allocationChartInstance.destroy();
+    }
+
+    const ctx = canvas.getContext("2d");
+    allocationChartInstance = new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        labels: labels,
+        datasets: [{
+          data: dataValues,
+          backgroundColor: backgroundColors,
+          borderWidth: 0,
+          hoverOffset: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: "70%",
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => ` ₩${Math.round(ctx.raw).toLocaleString("ko-KR")}`
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // 4️⃣ 포트폴리오 리밸런싱 계산기
+  function renderRebalancingCalculator(holdings) {
+    const inputsContainer = document.getElementById("rebalance-inputs");
+    const totalRatioEl = document.getElementById("rebalance-total-ratio");
+    const neededSumEl = document.getElementById("rebalance-needed-sum");
+    const actionsListEl = document.getElementById("rebalance-actions-list");
+
+    if (!inputsContainer) return;
+
+    // 카테고리 목록 추출
+    const categories = Object.keys(categoryColors);
+
+    // 최초 1회만 입력 폼 바인딩
+    if (!inputsContainer.dataset.initialized) {
+      inputsContainer.dataset.initialized = "true";
+      const defaultRatios = { "국내주식": 30, "해외주식": 40, "ETF": 10, "채권": 10, "현금": 10 };
+
+      inputsContainer.innerHTML = categories.map(cat => `
+        <label style="display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; color: #94a3b8;">
+          ${cat} 목표비중 (%)
+          <input type="number" class="rebalance-target-input" data-category="${cat}" min="0" max="100" value="${defaultRatios[cat] || 0}" 
+                 style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; padding: 6px 10px; color: #fff;" />
+        </label>
+      `).join("");
+
+      inputsContainer.addEventListener("input", () => calculateRebalance(holdings));
+    }
+
+    calculateRebalance(holdings);
+
+    function calculateRebalance(holdingsData) {
+      // 1. 카테고리별 현재 총 가치 계산
+      const catCurrentTotal = {};
+      let totalPortfolioValue = 0;
+
+      holdingsData.forEach(h => {
+        catCurrentTotal[h.category] = (catCurrentTotal[h.category] || 0) + h.totalValueKrw;
+        totalPortfolioValue += h.totalValueKrw;
+      });
+
+      // 2. 목표 비중 입력값 가져오기
+      const targetInputs = document.querySelectorAll(".rebalance-target-input");
+      let totalTargetRatio = 0;
+      const targetRatios = {};
+
+      targetInputs.forEach(input => {
+        const cat = input.dataset.category;
+        const val = parseFloat(input.value) || 0;
+        targetRatios[cat] = val;
+        totalTargetRatio += val;
+      });
+
+      if (totalRatioEl) {
+        totalRatioEl.textContent = `${totalTargetRatio.toFixed(1)}%`;
+        totalRatioEl.style.color = Math.abs(totalTargetRatio - 100) < 0.1 ? "#10b981" : "#ef4444";
+      }
+
+      if (totalPortfolioValue === 0) {
+        if (actionsListEl) actionsListEl.innerHTML = `<p style="color: #64748b; margin: 0;">자산을 먼저 추가해 주세요.</p>`;
+        if (neededSumEl) neededSumEl.textContent = "₩0";
+        return;
+      }
+
+      // 3. 리밸런싱 가이드 계산
+      let totalBuyNeeded = 0;
+      const actionItems = [];
+
+      categories.forEach(cat => {
+        const currentVal = catCurrentTotal[cat] || 0;
+        const targetRatio = targetRatios[cat] || 0;
+        const targetVal = totalPortfolioValue * (targetRatio / 100);
+        const diff = targetVal - currentVal;
+
+        if (Math.abs(diff) > 1000) { // 1,000원 이상 차이 날 때만 표시
+          if (diff > 0) {
+            totalBuyNeeded += diff;
+            actionItems.push(`<li><b>${cat}</b>: <span style="color: #10b981;">₩${Math.round(diff).toLocaleString("ko-KR")} 매수</span> 필요</li>`);
+          } else {
+            actionItems.push(`<li><b>${cat}</b>: <span style="color: #ef4444;">₩${Math.round(Math.abs(diff)).toLocaleString("ko-KR")} 매도</span> 필요</li>`);
+          }
+        }
+      });
+
+      if (neededSumEl) neededSumEl.textContent = "₩" + Math.round(totalBuyNeeded).toLocaleString("ko-KR");
+      
+      if (actionsListEl) {
+        if (actionItems.length === 0) {
+          actionsListEl.innerHTML = `<p style="color: #10b981; margin: 0;">🎉 현재 설정한 목표 비중에 완벽히 맞춰져 있습니다!</p>`;
+        } else {
+          actionsListEl.innerHTML = `<ul style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; color: #cbd5e1;">${actionItems.join("")}</ul>`;
+        }
+      }
+    }
+  }
+
+  // 메인 연동 통합 실행기
+  function refreshAdvancedDashboard() {
+    const holdings = getHoldingsData();
+    renderAllocationChart(holdings);
+    renderRebalancingCalculator(holdings);
+  }
+
+  // 초기화 및 이벤트 리스너 등록
+  window.addEventListener("load", async () => {
+    await updateExchangeRate();
+    refreshAdvancedDashboard();
+
+    // 보유 자산 변경 감지 (테이블 갱신 시 자동 리프레시)
+    const tableBody = document.getElementById("holdings-body");
+    if (tableBody) {
+      const observer = new MutationObserver(() => refreshAdvancedDashboard());
+      observer.observe(tableBody, { childList: true, subtree: true });
+    }
+  });
+})();
