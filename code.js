@@ -369,30 +369,93 @@ function runInvestmentSimulators() {
   const spTotalAssetKrw = spTotalAssetUsd * spFx;
   const spTotalDepositedKrw = spTotalDepositedUsd * spFx;
 
-  // ---------------------------------------------------------
-  // 3. 화면의 ₩ 출력 위치에 결과값 바인딩
-  // ---------------------------------------------------------
-  // 화면 전체에서 결과가 들어갈 ₩ 표시 엘리먼트 4개를 탐색
-  const allElements = Array.from(document.querySelectorAll('*'));
-  const targetOutputs = allElements.filter(el => {
-    return el.children.length === 0 && (el.textContent.trim().startsWith('₩') || el.textContent.trim() === '₩0');
-  });
+// =========================================================
+// 📈 HTML 맞춤형 시뮬레이터 연동 로직
+// =========================================================
 
-  // 순서대로 값 대입 (0: 배당 예상자산, 1: 누적배당금, 2: S&P 예상자산, 3: 총납입금)
-  if (targetOutputs.length >= 4) {
-    targetOutputs[0].textContent = toKRW(divTotalAsset);
-    targetOutputs[1].textContent = toKRW(divTotalAccumulated);
-    targetOutputs[2].textContent = toKRW(spTotalAssetKrw);
-    targetOutputs[3].textContent = toKRW(spTotalDepositedKrw);
-  }
+// 숫자에 포함된 콤마(,) 제거 후 float 변환
+function parseSimNum(val) {
+  if (!val) return 0;
+  const clean = String(val).replace(/,/g, "").trim();
+  const num = parseFloat(clean);
+  return isNaN(num) ? 0 : num;
 }
 
-// 이벤트 바인딩
-document.addEventListener("DOMContentLoaded", () => {
-  // DOM 로드 후 실행
-  setTimeout(runInvestmentSimulators, 200);
+// 원화(₩) 포맷팅
+function formatSimKRW(num) {
+  return "₩" + Math.round(num).toLocaleString("ko-KR");
+}
 
-  // 화면의 모든 입력값이 바뀔 때마다 실시간 계산
-  document.addEventListener("input", runInvestmentSimulators);
-  document.addEventListener("change", runInvestmentSimulators);
+// 1. 배당 시뮬레이터 계산
+function updateDividendSim() {
+  const reinvest = document.getElementById("dividend-reinvest")?.checked ?? true;
+  const initAsset = parseSimNum(document.getElementById("dividend-initial")?.value);
+  const monthlyAdd = parseSimNum(document.getElementById("dividend-monthly")?.value);
+  const yieldRate = parseSimNum(document.getElementById("dividend-yield")?.value) / 100;
+  const years = parseSimNum(document.getElementById("dividend-years")?.value);
+
+  const totalOut = document.getElementById("dividend-total");
+  const incomeOut = document.getElementById("dividend-income");
+
+  let totalAsset = initAsset;
+  let accumulatedDividend = 0;
+  const monthlyYield = yieldRate / 12;
+
+  for (let m = 1; m <= years * 12; m++) {
+    const currentDiv = totalAsset * monthlyYield;
+    accumulatedDividend += currentDiv;
+
+    if (reinvest) {
+      totalAsset += currentDiv;
+    }
+    totalAsset += monthlyAdd;
+  }
+
+  if (totalOut) totalOut.textContent = formatSimKRW(totalAsset);
+  if (incomeOut) incomeOut.textContent = formatSimKRW(accumulatedDividend);
+}
+
+// 2. S&P 500 시뮬레이터 계산
+function updateSp500Sim() {
+  const initUsd = parseSimNum(document.getElementById("sp-initial")?.value);
+  const monthlyUsd = parseSimNum(document.getElementById("sp-monthly")?.value);
+  const exchangeRate = parseSimNum(document.getElementById("sp-exchange-rate")?.value);
+  const annualReturn = parseSimNum(document.getElementById("sp-return")?.value) / 100;
+  const years = parseSimNum(document.getElementById("sp-years")?.value);
+
+  const totalOut = document.getElementById("sp-total");
+  const contribOut = document.getElementById("sp-contribution");
+
+  const monthlyReturn = annualReturn / 12;
+  let totalAssetUsd = initUsd;
+  let totalDepositedUsd = initUsd + (monthlyUsd * years * 12);
+
+  for (let m = 1; m <= years * 12; m++) {
+    totalAssetUsd = totalAssetUsd * (1 + monthlyReturn) + monthlyUsd;
+  }
+
+  const totalAssetKrw = totalAssetUsd * exchangeRate;
+  const totalDepositedKrw = totalDepositedUsd * exchangeRate;
+
+  if (totalOut) totalOut.textContent = formatSimKRW(totalAssetKrw);
+  if (contribOut) contribOut.textContent = formatSimKRW(totalDepositedKrw);
+}
+
+// 3. 전체 시뮬레이터 통합 실행
+function runSimulators() {
+  updateDividendSim();
+  updateSp500Sim();
+}
+
+// DOM 로드 완료 후 실시간 이벤트 바인딩
+document.addEventListener("DOMContentLoaded", () => {
+  // 처음 열릴 때 1회 계산
+  runSimulators();
+
+  // 시뮬레이터 영역 내부의 입력값이 바뀌면 즉시 실시간 재계산
+  const simSection = document.getElementById("simulators");
+  if (simSection) {
+    simSection.addEventListener("input", runSimulators);
+    simSection.addEventListener("change", runSimulators);
+  }
 });
