@@ -9,7 +9,7 @@
   // 통화 및 숫자 포맷터 (3자리마다 콤마 적용)
   const won = new Intl.NumberFormat("ko-KR", { style: "currency", currency: "KRW", maximumFractionDigits: 0 });
   const format = value => won.format(value || 0);
-  const numFormat = value => (Number(value) || 0).toLocaleString("ko-KR"); // 순수 숫자 3자리 콤마 헬퍼
+  const numFormat = value => (Number(value) || 0).toLocaleString("ko-KR");
 
   const colors = ["#978cff", "#55dfb2", "#ffb86b", "#5bbcff", "#ed8cc5", "#d5cf79"];
   const THIRTY_MEAN_NET_WORTH = 221580000;
@@ -183,7 +183,7 @@
     return Math.max(0, Number(rawValue) || 0);
   };
 
-  // input 입력 시 실시간으로 3자리 콤마 포맷팅을 적용해 주는 함수
+  // 실시간 3자리 콤마 포맷팅 처리 함수
   function applyFormattedInput(inputElem) {
     if (!inputElem) return;
     const rawVal = inputElem.value.replace(/[^0-9]/g, ""); // 숫자 이외 제거
@@ -247,10 +247,6 @@
 
   // --- 4. 이벤트 바인딩 및 초기화 (DOMContentLoaded) ---
   document.addEventListener("DOMContentLoaded", () => {
-    // 날짜 업데이트
-    const asOfElem = document.querySelector("#as-of");
-    if (asOfElem) asOfElem.textContent = new Intl.DateTimeFormat("ko-KR", {month:"short",day:"numeric",weekday:"short"}).format(new Date());
-
     // 모달 제어
     const modal = document.querySelector("#asset-modal");
     const openModalBtn = document.querySelector("#open-modal");
@@ -324,7 +320,7 @@
       };
     }
 
-    // 현 시점에서 불러오기 버튼
+    // 뉴스 새로고침 버튼
     const refreshBtn = document.querySelector("#refresh-briefing");
     if (refreshBtn) {
       refreshBtn.addEventListener("click", () => {
@@ -332,7 +328,7 @@
       });
     }
 
-    // --- 금액/수량 입력 필드 실시간 3자리 콤마 바인딩 ---
+    // --- 금액 입력 필드 실시간 3자리 콤마 바인딩 ---
     const moneyInputIds = [
       "dividend-initial", "dividend-monthly",
       "sp-initial", "sp-monthly", "sp-exchange-rate"
@@ -341,20 +337,23 @@
     moneyInputIds.forEach(id => {
       const elem = document.getElementById(id);
       if (elem) {
-        // 초기값 포맷팅
+        // 초기값 포맷 적용
         applyFormattedInput(elem);
-        // 타이핑 시 실시간 콤마 적용
+
+        // 입력 시 실시간 포맷팅 및 시뮬레이션 갱신
         elem.addEventListener("input", e => {
           applyFormattedInput(e.target);
+          renderDividend();
+          renderSp500();
         });
       }
     });
 
-    // 시뮬레이터 재계산 이벤트 연결
-    ["dividend-initial", "dividend-monthly", "dividend-yield", "dividend-years", "dividend-reinvest"].forEach(id => {
+    // 기타 숫 자 필드 변경 시 계산 연결
+    ["dividend-yield", "dividend-years", "dividend-reinvest"].forEach(id => {
       document.getElementById(id)?.addEventListener("input", renderDividend);
     });
-    ["sp-initial", "sp-monthly", "sp-exchange-rate", "sp-return", "sp-years"].forEach(id => {
+    ["sp-return", "sp-years"].forEach(id => {
       document.getElementById(id)?.addEventListener("input", renderSp500);
     });
 
@@ -364,7 +363,7 @@
     renderDividend();
     renderSp500();
     
-    // 스크롤 시 자동 메뉴 하이라이트
+    // 스크롤 시 사이드바 자동 메뉴 하이라이트
     const navLinks = document.querySelectorAll(".nav-link");
     const sections = document.querySelectorAll("main > section[id]");
 
