@@ -1,5 +1,5 @@
 // =========================================================
-// 📰 GitHub Pages 맞춤형 완벽 실시간 증시 뉴스 모듈
+// 📰 GitHub Pages 맞춤형 3단계 완전 우회 실시간 뉴스 모듈
 // =========================================================
 
 async function renderBriefing() {
@@ -11,7 +11,7 @@ async function renderBriefing() {
   // ⏱️ 1. 시작 시간 측정
   const startTime = performance.now();
 
-  // 스피너 애니메이션 CSS 등록
+  // 회전 애니메이션 등록
   if (!document.getElementById("spinner-style")) {
     const style = document.createElement("style");
     style.id = "spinner-style";
@@ -19,7 +19,7 @@ async function renderBriefing() {
     document.head.appendChild(style);
   }
 
-  // 2. 버튼 및 스피너 UI 적용
+  // 2. 버튼 상태 및 스피너 UI 적용
   let originalBtnText = "새로고침";
   if (refreshBtn) {
     originalBtnText = refreshBtn.getAttribute("data-original-text") || "새로고침";
@@ -45,66 +45,69 @@ async function renderBriefing() {
 
   if (briefingLoading) {
     briefingLoading.style.display = "block";
-    briefingLoading.textContent = "최신 증시 이슈를 가져오는 중입니다...";
+    briefingLoading.textContent = "최신 증시 이슈를 탐색 중입니다...";
   }
   if (briefingContainer) briefingContainer.hidden = true;
   if (briefingDate) briefingDate.textContent = "갱신 중...";
 
-  // 무작위 카테고리 선정 (구글 캐시 및 차단 우회)
+  // 키워드 무작위 교체
   const categoryList = [
     { name: "주요 증시", query: "증시" },
-    { name: "국내 주식", query: "주식" },
+    { name: "국내 주식", query: "코스피 주식" },
     { name: "미국 증시", query: "나스닥" },
-    { name: "금리/환율", query: "금리" },
-    { name: "반도체/AI", query: "반도체" }
+    { name: "금리/환율", query: "금리 환율" },
+    { name: "반도체/AI", query: "반도체 AI" }
   ];
   const selectedCat = categoryList[Math.floor(Math.random() * categoryList.length)];
-  const targetRss = `https://news.google.com/rss/search?q=${encodeURIComponent(selectedCat.query)}&hl=ko&gl=KR&ceid=KR:ko`;
+  const googleRssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(selectedCat.query)}&hl=ko&gl=KR&ceid=KR:ko`;
 
   let items = [];
 
-  // [1차 시도] jsDelivr/Rawg등 오픈 프록시 엔드포인트
+  // [시도 1] RSS2JSON API (가장 안정적, URL 인코딩 버그 수정)
   try {
-    const res = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetRss)}`);
+    const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(googleRssUrl)}&api_key=&_t=${Date.now()}`);
     if (res.ok) {
-      const xmlText = await res.text();
-      const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
-      const rawItems = Array.from(xmlDoc.querySelectorAll("item")).slice(0, 4);
-
-      items = rawItems.map(item => {
-        const fullTitle = item.querySelector("title")?.textContent || "증시 뉴스";
-        const parts = fullTitle.split(" - ");
-        const pubDateStr = item.querySelector("pubDate")?.textContent;
-        return {
-          title: parts[0],
-          source: parts.length > 1 ? parts[parts.length - 1] : "실시간뉴스",
-          link: item.querySelector("link")?.textContent || "#",
-          time: pubDateStr ? new Date(pubDateStr).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : ""
-        };
-      });
-    }
-  } catch (e) {
-    console.warn("1차 파이프라인 실패, 2차 전환...", e);
-  }
-
-  // [2차 시도] RSS2JSON API (pubDate 문법 에러 수정 완료)
-  if (items.length === 0) {
-    try {
-      const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(targetRss)}&_t=${Date.now()}`);
       const data = await res.json();
       if (data.status === "ok" && data.items && data.items.length > 0) {
         items = data.items.slice(0, 4).map(item => {
-          const parts = (item.title || "").split(" - ");
+          const parts = (item.title || "주요 증시 뉴스").split(" - ");
           return {
             title: parts[0],
-            source: parts.length > 1 ? parts[parts.length - 1] : (item.author || "주요뉴스"),
-            link: item.link,
+            source: parts.length > 1 ? parts[parts.length - 1] : (item.author || "증시뉴스"),
+            link: item.link || "#",
             time: item.pubDate ? new Date(item.pubDate).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : ""
           };
         });
       }
+    }
+  } catch (e) {
+    console.warn("1차 RSS2JSON 실패, 백업 프록시 시도...", e);
+  }
+
+  // [시도 2] AllOrigins 프록시
+  if (items.length === 0) {
+    try {
+      const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(googleRssUrl)}&_t=${Date.now()}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.contents) {
+          const xmlDoc = new DOMParser().parseFromString(data.contents, "text/xml");
+          const rawItems = Array.from(xmlDoc.querySelectorAll("item")).slice(0, 4);
+
+          items = rawItems.map(item => {
+            const parts = (item.querySelector("title")?.textContent || "").split(" - ");
+            const pubDateStr = item.querySelector("pubDate")?.textContent;
+            return {
+              title: parts[0],
+              source: parts.length > 1 ? parts[parts.length - 1] : "실시간뉴스",
+              link: item.querySelector("link")?.textContent || "#",
+              time: pubDateStr ? new Date(pubDateStr).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : ""
+            };
+          });
+        }
+      }
     } catch (e) {
-      console.warn("2차 파이프라인 실패", e);
+      console.warn("2차 AllOrigins 실패", e);
     }
   }
 
@@ -138,8 +141,8 @@ async function renderBriefing() {
       <div class="briefing-top">
         <span style="font-size: 0.8rem; color: #978cff; font-weight: 700; display: block; margin-bottom: 8px;">🤖 AI 증시 브리핑 (${selectedCat.name})</span>
         <p class="briefing-summary">
-          실시간 <b>'${selectedCat.name}'</b> 키워드로 검색된 주요 헤드라인입니다. 
-          시장의 흐름을 파악하고 변동성에 대비하세요.
+          실시간 <b>'${selectedCat.name}'</b> 관련 주요 헤드라인입니다. 
+          최근 증시 동향을 확인하고 자산 비중을 점검하세요.
         </p>
       </div>
     `;
@@ -155,13 +158,13 @@ async function renderBriefing() {
   } else {
     if (briefingLoading) {
       briefingLoading.style.display = "block";
-      briefingLoading.textContent = "⚠️ 실시간 뉴스를 불러오지 못했습니다. 잠시 후 다시 [새로고침]을 눌러주세요.";
+      briefingLoading.textContent = "⚠️ 실시간 서버 응답이 지연 중입니다. 1~2초 후 다시 눌러주세요.";
     }
-    if (briefingDate) briefingDate.textContent = `연결 실패 (${duration}초)`;
+    if (briefingDate) briefingDate.textContent = `갱신 지연 (${duration}초)`;
   }
 }
 
-// 이벤트 등록
+// 이벤트 바인딩
 document.addEventListener("DOMContentLoaded", () => {
   renderBriefing();
 
