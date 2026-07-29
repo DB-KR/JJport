@@ -29,31 +29,84 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Generate daily briefing
+      - name: Generate daily briefing via OpenAI
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          # 뉴스 RSS를 가져와 daily-briefing.json 파일 생성하는 인라인 스크립트
           node -e '
           const fs = require("fs");
-          
-          async function generate() {
-            const briefingData = {
-              generatedAt: new Date().toISOString(),
-              marketTone: "positive",
-              summary: "GitHub Actions를 통해 최신 증시 뉴스 브리핑이 성공적으로 생성되었습니다.",
-              articles: [
-                {
-                  title: "글로벌 증시 및 주요 종목 동향",
-                  takeaway: "자동화 워크플로가 정상 동작 중이며 최신 브리핑 데이터가 갱신되었습니다.",
-                  source: "Google News RSS",
-                  url: "https://news.google.com"
-                }
-              ]
-            };
-            fs.writeFileSync("daily-briefing.json", JSON.stringify(briefingData, null, 2));
+          const https = require("https");
+
+          const RSS_URL = "https://news.google.com/rss/search?q=%EC%A3%BC%EC%8B%9C+%EC%A6%9D%EC%8B%9C+%EB%B0%98%EB%8F%84%EC%B2%B4&hl=ko&gl=KR&ceid=KR:ko";
+
+          function fetchRSS(url) {
+            return new Promise((resolve, reject) => {
+              https.get(url, (res) => {
+                let data = "";
+                res.on("data", chunk => data += chunk);
+                res.on("end", () => resolve(data));
+              }).on("error", reject);
+            });
           }
-          generate();
+
+          async function run() {
+            try {
+              const xml = await fetchRSS(RSS_URL);
+              const items = [];
+              const matches = xml.matchAll(/<item>[\s\S]*?<title>(.*?)<\/title>[\s\S]*?<link>(.*?)<\/link>/g);
+              for (const m of matches) {
+                if (items.length >= 8) break;
+                items.push({ title: m[1].replace(/<!\[CDATA\[(.*?)\]\]>/g, "$1"), url: m[2] });
+              }
+
+              const prompt = `다음 뉴스 목록에서 오늘 주식 시장에서 가장 중요한 뉴스 3개를 엄선하고 전체 시장 톤(positive/neutral/cautious)과 1줄 요약을 작성해줘.
+              뉴스 목록: ${JSON.stringify(items)}
+              
+              응답은 반드시 아래 JSON 형식으로만 출력해:
+              {
+                "marketTone": "positive|neutral|cautious",
+                "summary": "전체 시장 요약 한문장",
+                "articles": [
+                  { "title": "뉴스제목", "takeaway": "핵심 내용 1문장 요약", "source": "출처", "url": "링크" }
+                ]
+              }`;
+
+              const req = https.request("https://api.openai.com/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
+                }
+              }, (res) => {
+                let body = "";
+                res.on("data", c => body += c);
+                res.on("end", () => {
+                  try {
+                    const result = JSON.parse(body);
+                    const content = JSON.parse(result.choices[0].message.content);
+                    content.generatedAt = new Date().toISOString();
+                    fs.writeFileSync("daily-briefing.json", JSON.stringify(content, null, 2));
+                    console.log("Briefing generated successfully!");
+                  } catch (e) {
+                    console.error("Failed to parse response:", body);
+                    process.exit(1);
+                  }
+                });
+              });
+
+              req.write(JSON.stringify({
+                model: "gpt-4o-mini",
+                messages: [{ role: "user", content: prompt }],
+                response_format: { type: "json_object" }
+              }));
+              req.end();
+
+            } catch (err) {
+              console.error(err);
+              process.exit(1);
+            }
+          }
+          run();
           '
 
       - name: Setup Pages
