@@ -1,16 +1,17 @@
 // =========================================================
-// 🚀 대시보드 통합 관리 & 거래 엔진 (code.js)
+// 🚀 대시보드 통합 관리 & 원리금 자동 차감 엔진 (code.js)
 // =========================================================
 
 (function initDashboardApp() {
   let transactions = JSON.parse(localStorage.getItem("portfolio_txs") || "[]");
-  let liveUsdKrwRate = 1400; // 기본 환율 백업
+  let liveUsdKrwRate = 1400; // 기본 환율
   let allocationChartInstance = null;
 
   // 자산 분류별 테마 색상
   const categoryColors = {
     "국내주식": "#6366f1",
     "해외주식": "#10b981",
+    "ETF": "#f59e0b",
     "부동산": "#eab308",
     "채권": "#3b82f6",
     "가상자산": "#ec4899",
@@ -18,7 +19,7 @@
     "대출": "#ef4444"
   };
 
-  // 1️⃣ 실시간 환율 정보 가져오기
+  // 1️⃣ 실시간 환율 정보
   async function fetchLiveRate() {
     try {
       const res = await fetch("https://open.er-api.com/v6/latest/USD");
@@ -31,35 +32,64 @@
     }
   }
 
-  // 2️⃣ 모달 제어
+  // 2️⃣ 모달 제어 및 대출 필드 동적 전환
   const modal = document.getElementById("tx-modal");
   const openBtn = document.getElementById("open-tx-modal");
   const closeBtn = document.getElementById("close-tx-modal");
   const cancelBtn = document.getElementById("cancel-tx-modal");
   const form = document.getElementById("tx-form");
   const dateInput = document.getElementById("tx-date");
+  const categorySelect = document.getElementById("tx-category");
 
   if (dateInput) dateInput.value = new Date().toISOString().substring(0, 10);
   if (openBtn) openBtn.onclick = () => modal.showModal();
   if (closeBtn) closeBtn.onclick = () => modal.close();
   if (cancelBtn) cancelBtn.onclick = () => modal.close();
 
-  // 거래 등록
+  // 대출 선택 시 입력 폼 변경 처리
+  if (categorySelect) {
+    categorySelect.addEventListener("change", (e) => {
+      const isLoan = e.target.value === "대출";
+      const assetFields = document.querySelectorAll(".asset-field");
+      const loanFields = document.querySelectorAll(".loan-field");
+      const typeLabel = document.getElementById("type-label");
+
+      assetFields.forEach(f => f.style.display = isLoan ? "none" : "flex");
+      loanFields.forEach(f => f.style.display = isLoan ? "flex" : "none");
+      if (typeLabel) typeLabel.style.display = isLoan ? "none" : "flex";
+    });
+  }
+
+  // 거래/대출 등록 저장
   if (form) {
     form.onsubmit = (e) => {
       e.preventDefault();
       const formData = new FormData(form);
-      const newTx = {
+      const category = formData.get("category");
+      const isLoan = category === "대출";
+
+      let newTx = {
         id: Date.now(),
         date: formData.get("date"),
-        type: formData.get("type"), // BUY / SELL
+        category: category,
         name: formData.get("name").trim(),
-        category: formData.get("category"),
-        currency: formData.get("currency"),
-        quantity: parseFloat(formData.get("quantity")),
-        price: parseFloat(formData.get("price")),
-        currentPrice: parseFloat(formData.get("currentPrice"))
+        currency: formData.get("currency")
       };
+
+      if (isLoan) {
+        newTx.type = "LOAN";
+        newTx.loanAmount = parseFloat(formData.get("loanAmount")) || 0;
+        newTx.interestRate = parseFloat(formData.get("interestRate")) || 0;
+        newTx.loanTermMonths = parseInt(formData.get("loanTermMonths")) || 12;
+        newTx.quantity = 1;
+        newTx.price = newTx.loanAmount;
+        newTx.currentPrice = newTx.loanAmount;
+      } else {
+        newTx.type = formData.get("type");
+        newTx.quantity = parseFloat(formData.get("quantity")) || 0;
+        newTx.price = parseFloat(formData.get("price")) || 0;
+        newTx.currentPrice = parseFloat(formData.get("currentPrice")) || 0;
+      }
 
       transactions.push(newTx);
       saveAndRender();
@@ -69,7 +99,7 @@
     };
   }
 
-  // 거래 삭제
+  // 삭제
   window.deleteTransaction = function(id) {
     transactions = transactions.filter(t => t.id !== id);
     saveAndRender();
@@ -80,7 +110,44 @@
     renderAll();
   }
 
-  // 3️⃣ 핵심 정산 및 이동평균법 포트폴리오 연산 Engine
+  // 3️⃣ 💡 원리금 균등상환 잔액 계산 수식 함수
+  function calculateLoanStatus(startDateStr, principal, annualRatePercent, totalMonths) {
+    if (!principal || principal <= 0) return { currentBalance: 0, monthlyPayment: 0, passedMonths: 0 };
+
+    const startDate = new Date(startDateStr);
+    const now = new Date();
+
+    // 경과된 개월 수 계산
+    let passedMonths = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
+    if (now.getDate() < startDate.getDate()) passedMonths -= 1; // 일자 미달 시 1개월 차감
+    passedMonths = Math.max(0, Math.min(passedMonths, totalMonths));
+
+    const monthlyRate = (annualRatePercent / 100) / 12;
+    
+    // 월 원리금 상환액 계산 (PMT 공식)
+    let monthlyPayment = 0;
+    if (monthlyRate > 0) {
+      monthlyPayment = principal * (monthlyRate * Math.pow(1 + monthlyRate, totalMonths)) / (Math.pow(1 + monthlyRate, totalMonths) - 1);
+    } else {
+      monthlyPayment = principal / totalMonths;
+    }
+
+    // 경과 개월 수에 따른 남은 원금 잔액 산출
+    let currentBalance = principal;
+    for (let i = 0; i < passedMonths; i++) {
+      const interestForMonth = currentBalance * monthlyRate;
+      const principalRepaid = monthlyPayment - interestForMonth;
+      currentBalance -= principalRepaid;
+    }
+
+    return {
+      currentBalance: Math.max(0, currentBalance),
+      monthlyPayment: monthlyPayment,
+      passedMonths: passedMonths
+    };
+  }
+
+  // 4️⃣ 포트폴리오 정산 연산 Engine
   function processPortfolio() {
     const holdingsMap = {};
     const realizedPnl = { month: { krw: 0, usd: 0 }, quarter: { krw: 0, usd: 0 }, year: { krw: 0, usd: 0 } };
@@ -90,14 +157,36 @@
     const currentMonth = now.getMonth();
     const currentQuarter = Math.floor(currentMonth / 3);
 
-    // 거래 날짜 오름차순 정렬 (이동평균 정확도 확보)
     const sortedTxs = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
 
     sortedTxs.forEach(tx => {
       const isUsd = tx.currency === "USD";
-      
-      // 💡 부동산 및 대출은 동일 이름이더라도 개별 건으로 분리 관리
-      const isUniqueAsset = tx.category === "부동산" || tx.category === "대출";
+
+      if (tx.category === "대출") {
+        // 원리금 자동 계산 반영
+        const loanStatus = calculateLoanStatus(tx.date, tx.loanAmount, tx.interestRate, tx.loanTermMonths);
+        
+        holdingsMap[`loan_${tx.id}`] = {
+          id: tx.id,
+          name: tx.name,
+          category: "대출",
+          currency: tx.currency,
+          qty: 1,
+          avgPrice: tx.loanAmount,
+          currentPrice: loanStatus.currentBalance, // 경과에 따라 감소된 대출 잔액
+          loanInfo: {
+            initialPrincipal: tx.loanAmount,
+            monthlyPayment: loanStatus.monthlyPayment,
+            passedMonths: loanStatus.passedMonths,
+            totalMonths: tx.loanTermMonths,
+            rate: tx.interestRate
+          }
+        };
+        return;
+      }
+
+      // 일반 자산 / 부동산
+      const isUniqueAsset = tx.category === "부동산";
       const itemKey = isUniqueAsset ? `${tx.name}_${tx.id}` : tx.name;
 
       if (!holdingsMap[itemKey]) {
@@ -125,21 +214,17 @@
         const profit = pnlPerUnit * sellQty;
 
         const txDate = new Date(tx.date);
-        const txYear = txDate.getFullYear();
-        const txMonth = txDate.getMonth();
-        const txQuarter = Math.floor(txMonth / 3);
-
         const profitUsd = isUsd ? profit : profit / liveUsdKrwRate;
         const profitKrw = isUsd ? profit * liveUsdKrwRate : profit;
 
-        if (txYear === currentYear) {
+        if (txDate.getFullYear() === currentYear) {
           realizedPnl.year.usd += profitUsd;
           realizedPnl.year.krw += profitKrw;
-          if (txQuarter === currentQuarter) {
+          if (Math.floor(txDate.getMonth() / 3) === currentQuarter) {
             realizedPnl.quarter.usd += profitUsd;
             realizedPnl.quarter.krw += profitKrw;
           }
-          if (txMonth === currentMonth) {
+          if (txDate.getMonth() === currentMonth) {
             realizedPnl.month.usd += profitUsd;
             realizedPnl.month.krw += profitKrw;
           }
@@ -151,11 +236,11 @@
     return { holdingsMap, realizedPnl };
   }
 
-  // 4️⃣ 메인 요약 대시보드 (순자산, 달성률, 평가손익) 동기화
+  // 5️⃣ 메인 요약 대시보드
   function updateHeroOverview(activeHoldings) {
-    let totalAssetKrw = 0;  // 총 자산 (+)
-    let totalDebtKrw = 0;   // 총 대출/부채 (-)
-    let totalCostKrw = 0;   // 총 매입금액
+    let totalAssetKrw = 0;
+    let totalDebtKrw = 0;
+    let totalCostKrw = 0;
     let investedValueKrw = 0;
     let cashValueKrw = 0;
 
@@ -165,7 +250,7 @@
       const costKrw = isUsd ? (h.qty * h.avgPrice) * liveUsdKrwRate : h.qty * h.avgPrice;
 
       if (h.category === "대출") {
-        totalDebtKrw += valKrw;
+        totalDebtKrw += valKrw; // 현재 상환 후 남은 대출 잔액 반영
       } else {
         totalAssetKrw += valKrw;
         totalCostKrw += costKrw;
@@ -178,11 +263,9 @@
       }
     });
 
-    // 순자산 = 총 자산 - 대출
     const netWorthKrw = totalAssetKrw - totalDebtKrw;
     const totalUnrealizedProfitKrw = (totalAssetKrw - totalCostKrw);
 
-    // A. 순자산 & 자산 구성
     const netWorthEl = document.getElementById("net-worth");
     const investedEl = document.getElementById("invested-value");
     const cashEl = document.getElementById("cash-value");
@@ -191,7 +274,6 @@
     if (investedEl) investedEl.textContent = "₩" + Math.round(investedValueKrw).toLocaleString("ko-KR");
     if (cashEl) cashEl.textContent = "₩" + Math.round(cashValueKrw).toLocaleString("ko-KR");
 
-    // B. 전체 평가손익
     const profitEl = document.getElementById("monthly-profit");
     const detailEl = document.getElementById("monthly-detail");
     if (profitEl) {
@@ -204,7 +286,6 @@
       detailEl.textContent = `총 수익률: ${rate.toFixed(2)}%`;
     }
 
-    // C. 목표 자산 달성률 Tracker
     const targetInput = document.getElementById("target-amount");
     const percentText = document.getElementById("goal-percent-text");
     const remainingText = document.getElementById("goal-remaining-text");
@@ -223,20 +304,20 @@
     }
   }
 
-  // 5️⃣ 자산 배분 도넛 차트
+  // 6️⃣ 자산 배분 도넛 차트
   function renderAllocationChart(activeHoldings) {
     const canvas = document.getElementById("allocationCanvas");
     const legendEl = document.getElementById("legend");
     const countEl = document.getElementById("asset-count");
 
-    if (countEl) countEl.textContent = activeHoldings.length;
+    const validHoldings = activeHoldings.filter(h => h.category !== "대출");
+    if (countEl) countEl.textContent = validHoldings.length;
     if (!canvas || typeof Chart === "undefined") return;
 
     const catTotals = {};
     let grandTotal = 0;
 
-    activeHoldings.forEach(h => {
-      if (h.category === "대출") return; // 부채는 차트 비중에서 제외
+    validHoldings.forEach(h => {
       const isUsd = h.currency === "USD";
       const valKrw = isUsd ? (h.qty * h.currentPrice) * liveUsdKrwRate : h.qty * h.currentPrice;
       catTotals[h.category] = (catTotals[h.category] || 0) + valKrw;
@@ -289,36 +370,32 @@
     });
   }
 
-  // 6️⃣ 전체 화면 통합 렌더링
+  // 7️⃣ 통합 렌더링
   function renderAll() {
     const { holdingsMap, realizedPnl } = processPortfolio();
-    const activeHoldings = Object.values(holdingsMap).filter(h => h.qty > 0);
+    const activeHoldings = Object.values(holdingsMap).filter(h => h.qty > 0 && h.currentPrice > 0);
 
-    // 1. 상단 개요 카드 실시간 반영 (순자산, 달성률, 평가손익)
     updateHeroOverview(activeHoldings);
-
-    // 2. 도넛 차트 반영
     renderAllocationChart(activeHoldings);
 
-    // 3. 거래 내역 테이블 렌더링
+    // 내역 테이블
     const txBody = document.getElementById("tx-history-body");
     if (txBody) {
       if (transactions.length === 0) {
         txBody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:#64748b; padding:20px;">기록된 거래 내역이 없습니다.</td></tr>`;
       } else {
         txBody.innerHTML = [...transactions].reverse().map(t => {
-          const isBuy = t.type === "BUY";
+          const isLoan = t.category === "대출";
           const symbol = t.currency === "USD" ? "$" : "₩";
-          const total = t.quantity * t.price;
           return `
             <tr>
               <td>${t.date}</td>
-              <td><span style="color:${isBuy ? '#10b981' : '#ef4444'}; font-weight:bold;">${isBuy ? '매수' : '매도'}</span></td>
+              <td><span style="color:${isLoan ? '#ef4444' : (t.type === 'BUY' ? '#10b981' : '#ef4444')}; font-weight:bold;">${isLoan ? '대출실행' : (t.type === 'BUY' ? '매수' : '매도')}</span></td>
               <td><b>${t.name}</b></td>
               <td>${t.currency}</td>
-              <td>${t.quantity.toLocaleString("ko-KR")}</td>
-              <td>${symbol}${t.price.toLocaleString("ko-KR")}</td>
-              <td>${symbol}${total.toLocaleString("ko-KR")}</td>
+              <td>${isLoan ? '1 (대출)' : t.quantity.toLocaleString("ko-KR")}</td>
+              <td>${symbol}${(isLoan ? t.loanAmount : t.price).toLocaleString("ko-KR")}</td>
+              <td>${symbol}${(isLoan ? t.loanAmount : t.quantity * t.price).toLocaleString("ko-KR")}</td>
               <td><button onclick="deleteTransaction(${t.id})" style="background:none; border:none; color:#ef4444; cursor:pointer;">삭제</button></td>
             </tr>
           `;
@@ -326,7 +403,7 @@
       }
     }
 
-    // 4. 보유 자산 테이블 렌더링
+    // 보유 자산 / 대출 잔액 테이블
     const holdingsBody = document.getElementById("holdings-body");
     const emptyState = document.getElementById("empty-state");
 
@@ -337,64 +414,50 @@
       } else {
         if (emptyState) emptyState.style.display = "none";
         holdingsBody.innerHTML = activeHoldings.map(h => {
+          const isLoan = h.category === "대출";
           const isUsd = h.currency === "USD";
-          const totalUsd = isUsd ? h.qty * h.currentPrice : (h.qty * h.currentPrice) / liveUsdKrwRate;
           const totalKrw = isUsd ? (h.qty * h.currentPrice) * liveUsdKrwRate : h.qty * h.currentPrice;
-
-          const costUsd = isUsd ? h.qty * h.avgPrice : (h.qty * h.avgPrice) / liveUsdKrwRate;
-          const profitUsd = totalUsd - costUsd;
-          const profitRateUsd = costUsd > 0 ? (profitUsd / costUsd) * 100 : 0;
-
           const costKrw = isUsd ? (h.qty * h.avgPrice) * liveUsdKrwRate : h.qty * h.avgPrice;
+
+          if (isLoan) {
+            const info = h.loanInfo;
+            return `
+              <tr style="background: rgba(239, 68, 68, 0.05);">
+                <td><b>${h.name}</b></td>
+                <td><small style="background:rgba(239,68,68,0.2); color:#ef4444; padding:2px 6px; border-radius:4px;">대출(부채)</small></td>
+                <td>${info.passedMonths}/${info.totalMonths}회차</td>
+                <td>₩${Math.round(info.initialPrincipal).toLocaleString("ko-KR")}</td>
+                <td><b style="color:#ef4444;">₩${Math.round(h.currentPrice).toLocaleString("ko-KR")}</b> <small>(잔액)</small></td>
+                <td><b>-₩${Math.round(totalKrw).toLocaleString("ko-KR")}</b></td>
+                <td colspan="2" style="color:#cbd5e1;">월 상환액: <b style="color:#ef4444;">₩${Math.round(info.monthlyPayment).toLocaleString("ko-KR")}</b> <small>(${info.rate}%)</small></td>
+              </tr>
+            `;
+          }
+
           const profitKrw = totalKrw - costKrw;
           const profitRateKrw = costKrw > 0 ? (profitKrw / costKrw) * 100 : 0;
-
-          const colorUsd = profitUsd >= 0 ? "#10b981" : "#ef4444";
           const colorKrw = profitKrw >= 0 ? "#10b981" : "#ef4444";
 
           return `
-            <tr data-category="${h.category}" data-currency="${h.currency}" data-quantity="${h.qty}" data-current-price="${h.currentPrice}">
+            <tr>
               <td><b>${h.name}</b></td>
               <td><small style="background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">${h.category}</small></td>
               <td>${h.qty.toLocaleString("ko-KR")}</td>
               <td>${isUsd ? '$' : '₩'}${h.avgPrice.toLocaleString("ko-KR")}</td>
               <td>${isUsd ? '$' : '₩'}${h.currentPrice.toLocaleString("ko-KR")}</td>
-              <td><b>₩${Math.round(totalKrw).toLocaleString("ko-KR")}</b> <br/><small style="color:#64748b;">($${totalUsd.toFixed(2)})</small></td>
+              <td><b>₩${Math.round(totalKrw).toLocaleString("ko-KR")}</b></td>
               <td style="color:${colorKrw}"><b>${profitRateKrw.toFixed(2)}%</b><br/><small>₩${Math.round(profitKrw).toLocaleString("ko-KR")}</small></td>
-              <td style="color:${colorUsd}"><b>${profitRateUsd.toFixed(2)}%</b><br/><small>$${profitUsd.toFixed(2)}</small></td>
+              <td style="color:${colorKrw}"><b>${profitRateKrw.toFixed(2)}%</b></td>
             </tr>
           `;
         }).join("");
       }
     }
-
-    // 5. 기간별 실현 손익 카드 업데이트
-    const fmtPnl = (pnl) => {
-      const color = pnl.krw >= 0 ? "#10b981" : "#ef4444";
-      const sign = pnl.krw >= 0 ? "+" : "";
-      return `<span style="color:${color}">${sign}₩${Math.round(pnl.krw).toLocaleString("ko-KR")} <small style="font-size:0.8rem;">(${sign}$${pnl.usd.toFixed(2)})</small></span>`;
-    };
-
-    const monthEl = document.getElementById("pnl-month");
-    const quarterEl = document.getElementById("pnl-quarter");
-    const yearEl = document.getElementById("pnl-year");
-
-    if (monthEl) monthEl.innerHTML = fmtPnl(realizedPnl.month);
-    if (quarterEl) quarterEl.innerHTML = fmtPnl(realizedPnl.quarter);
-    if (yearEl) yearEl.innerHTML = fmtPnl(realizedPnl.year);
   }
 
-  // 7️⃣ 초기화 및 목표 금액 입력 이벤트 연동
+  // 초기화
   window.addEventListener("load", async () => {
     await fetchLiveRate();
     renderAll();
-
-    const targetInput = document.getElementById("target-amount");
-    if (targetInput) {
-      targetInput.addEventListener("input", () => {
-        const { holdingsMap } = processPortfolio();
-        updateHeroOverview(Object.values(holdingsMap).filter(h => h.qty > 0));
-      });
-    }
   });
 })();
