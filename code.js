@@ -124,57 +124,50 @@ function renderGoal(total) {
   if (barFill) barFill.style.width = `${percent}%`;
 }
 
-// 6. 📰 실시간 뉴스 브리핑 로직 (네이버 증시 뉴스 연동)
+// 6. 📰 실시간 '주요 증시 뉴스' 상위 헤드라인 연동 로직
 async function renderBriefing() {
   const briefingContainer = document.getElementById("briefing-content");
   if (!briefingContainer) return;
 
-  // 로딩 표시
+  // 로딩 UI
   briefingContainer.innerHTML = `
     <div style="grid-column: 1 / -1; padding: 25px; text-align: center; color: #94a3b8; font-size: 0.9rem;">
-      ⚡ 최신 증시 뉴스를 실시간으로 불러오는 중...
+      ⚡ 오늘의 주요 증시 뉴스를 가져오는 중입니다...
     </div>
   `;
 
   try {
-    // 네이버 실시간 증시/금융 RSS (corsproxy.io 이용으로 매우 빠름)
-    const rssUrl = "https://news.google.com/rss/search?q=%EC%A3%BC%EC%8B%9D+%EC%A6%9D%EC%8B%9C&hl=ko&gl=KR&ceid=KR:ko";
-    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(rssUrl)}`;
-    
-    // 3초 타임아웃 설정 (응답이 느리면 백업 데이터로 즉시 전환)
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3500);
+    // 네이버 금융 주요 증시 헤드라인 RSS 연동
+    const targetRss = encodeURIComponent("https://news.google.com/rss/search?q=%EC%A3%BC%EC%9A%94+%EC%A6%9D%EC%8B%9C+%ED%97%A4%EB%93%9C%EB%9D%BC%EC%9D%B8&hl=ko&gl=KR&ceid=KR:ko");
+    const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${targetRss}`;
 
-    const response = await fetch(proxyUrl, { signal: controller.signal });
-    clearTimeout(timeoutId);
+    const response = await fetch(apiUrl);
+    const data = await response.json();
 
-    if (!response.ok) throw new Error("네트워크 응답 오류");
+    if (data.status !== "ok" || !data.items || data.items.length === 0) {
+      throw new Error("주요 뉴스를 가져오지 못했습니다.");
+    }
 
-    const xmlText = await response.text();
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-    const items = Array.from(xmlDoc.querySelectorAll("item")).slice(0, 4);
+    // 무작위 섞기 없이 가장 비중 높은 '주요 뉴스 상위 4개'만 순서대로 추출
+    const topNewsList = data.items.slice(0, 4);
 
-    if (items.length === 0) throw new Error("뉴스 항목 없음");
-
-    // 뉴스 목록 UI
     let newsHtml = `<ul class="briefing-list">`;
-    items.forEach((item) => {
-      const title = item.querySelector("title")?.textContent || "제목 없음";
-      const link = item.querySelector("link")?.textContent || "#";
-      const pubDate = item.querySelector("pubDate")?.textContent || "";
-      
-      const titleParts = title.split(" - ");
+    topNewsList.forEach((item) => {
+      // 제목 및 언론사 정보 정형화
+      const fullTitle = item.title || "주요 증시 뉴스";
+      const titleParts = fullTitle.split(" - ");
       const displayTitle = titleParts[0];
-      const displaySource = titleParts.length > 1 ? titleParts[titleParts.length - 1] : "증시뉴스";
+      const displaySource = titleParts.length > 1 ? titleParts[titleParts.length - 1] : (item.author || "주요뉴스");
       
-      const timeStr = pubDate ? new Date(pubDate).toLocaleTimeString("ko-KR", { hour: '2-digit', minute: '2-digit' }) : '';
+      // 작성 시각
+      const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
+      const timeStr = pubDate.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
 
       newsHtml += `
         <li>
-          <a href="${link}" target="_blank" rel="noopener noreferrer">${displayTitle}</a>
+          <a href="${item.link}" target="_blank" rel="noopener noreferrer">${displayTitle}</a>
           <div style="margin-top: 6px; display: flex; gap: 8px; align-items: center;">
-            <span class="briefing-source">${displaySource}</span>
+            <span class="briefing-source" style="background: #28304d; color: #8a7cff; font-weight: 600;">${displaySource}</span>
             <small style="color: #64748b; font-size: 0.75rem;">${timeStr}</small>
           </div>
         </li>
@@ -182,12 +175,12 @@ async function renderBriefing() {
     });
     newsHtml += `</ul>`;
 
-    // 우측 AI 분석 영역 카드
+    // 우측 AI 브리핑 카드
     let aiSummaryHtml = `
       <div class="briefing-top">
         <p class="briefing-summary">
-          실시간 증시 뉴스를 기반으로 시장 동향을 파악하고 있습니다. 
-          주요 경제 지표 및 기업 이슈를 점검하여 포트폴리오 자산 비중을 조절하세요.
+          오늘의 핵심 증시 이슈를 종합 점검 중입니다. 
+          주요 헤드라인 지표와 시장 흐름을 바탕으로 포트폴리오 리스크를 관리해 보세요.
         </p>
       </div>
     `;
@@ -195,26 +188,11 @@ async function renderBriefing() {
     briefingContainer.innerHTML = newsHtml + aiSummaryHtml;
 
   } catch (err) {
-    console.warn("실시간 뉴스 불러오기 제한, 로컬 브리핑으로 대체:", err);
+    console.error("주요 뉴스 로드 실패:", err);
     
-    // API 연결 지연/실패 시 즉시 표시되는 최신 이슈 대체 브리핑
     briefingContainer.innerHTML = `
-      <ul class="briefing-list">
-        <li>
-          <a href="#" onclick="return false;">연준 금리 향방 관망… 증시 자금 유입 지속</a>
-          <p>글로벌 통화정책 발표를 앞두고 주요 지수 및 기술주 중심의 변동성이 이어지고 있습니다.</p>
-          <span class="briefing-source">증시브리핑</span>
-        </li>
-        <li>
-          <a href="#" onclick="return false;">S&P 500 및 나스닥 견조한 상승세 유지</a>
-          <p>주요 대형 기술주 실적 호조에 힘입어 포트폴리오 수익률 방어가 양호한 편입니다.</p>
-          <span class="briefing-source">시장동향</span>
-        </li>
-      </ul>
-      <div class="briefing-top">
-        <p class="briefing-summary">
-          현재 네트워크 상태로 인해 요약 브리핑을 표시합니다. 새로고침 시 실시간 기사를 다시 조회합니다.
-        </p>
+      <div style="grid-column: 1 / -1; padding: 20px; text-align: center; color: #ef4444; font-size: 0.85rem;">
+        ⚠️ 주요 뉴스를 불러오는 도중 오류가 발생했습니다. 잠시 후 새로고침 해주세요.
       </div>
     `;
   }
