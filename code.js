@@ -124,33 +124,39 @@ function renderGoal(total) {
   if (barFill) barFill.style.width = `${percent}%`;
 }
 
-// 6. 📰 실시간 주요 증시 뉴스 연동 & [새로고침] 완전 갱신 로직
+// 6. 📰 키워드 로테이션 방식의 진짜 실시간 뉴스 새로고침 로직
 async function renderBriefing() {
   const briefingContainer = document.getElementById("briefing-content");
   const briefingLoading = document.getElementById("briefing-loading");
   const briefingDate = document.getElementById("briefing-date");
   const refreshBtn = document.getElementById("refresh-briefing");
 
-  // 1. 로딩 UI 처리
+  // 1. UI 상태 변경
   if (briefingLoading) {
     briefingLoading.style.display = "block";
-    briefingLoading.textContent = "최신 주요 증시 뉴스를 탐색하고 있어요...";
+    briefingLoading.textContent = "최신 증시 이슈를 새로 탐색하는 중...";
   }
-  if (briefingContainer) {
-    briefingContainer.hidden = true;
-  }
+  if (briefingContainer) briefingContainer.hidden = true;
   if (briefingDate) briefingDate.textContent = "갱신 중...";
   if (refreshBtn) refreshBtn.disabled = true;
 
-  let items = [];
+  // 2. 새로고침할 때마다 구글 검색 키워드를 무작위로 교체 (구글 캐시 완전 우회)
+  const keywords = [
+    "주요 증시 헤드라인",
+    "국내 증시 주식 시황",
+    "미국 증시 나스닥",
+    "금리 환율 코스피",
+    "반도체 AI 주식 이슈",
+    "글로벌 증시 다우지수"
+  ];
+  const randomKeyword = keywords[Math.floor(Math.random() * keywords.length)];
 
-  // 캐시 우회를 위한 무작위 난수 생성 (새로고침 시 매번 다른 주소로 인식하게 함)
-  const cacheBuster = `&_nocache=${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  let items = [];
+  const cacheBuster = `&_t=${Date.now()}`;
 
   // [1차 시도] rss2json API
   try {
-    // 키워드를 '주식 증시'로 다변화하여 최신 헤드라인 수집
-    const targetRss = encodeURIComponent("https://news.google.com/rss/search?q=%EC%A3%BC%EC%8B%9D+%EC%A6%9D%EC%8B%9C+%EA%B8%88%EB%A6%AC&hl=ko&gl=KR&ceid=KR:ko");
+    const targetRss = encodeURIComponent(`https://news.google.com/rss/search?q=${encodeURIComponent(randomKeyword)}&hl=ko&gl=KR&ceid=KR:ko`);
     const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${targetRss}${cacheBuster}`;
 
     const res = await fetch(apiUrl);
@@ -169,13 +175,13 @@ async function renderBriefing() {
       });
     }
   } catch (e) {
-    console.warn("1차 RSS API 실패, 백업 로직 시도...", e);
+    console.warn("1차 RSS API 실패, 백업 로직 시도 중...", e);
   }
 
-  // [2차 시도] 백업 프록시 (corsproxy.io)
+  // [2차 시도] corsproxy.io 우회
   if (items.length === 0) {
     try {
-      const rssUrl = "https://news.google.com/rss/search?q=%EC%A3%BC%EC%8B%9D+%EC%A6%9D%EC%8B%9C&hl=ko&gl=KR&ceid=KR:ko";
+      const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(randomKeyword)}&hl=ko&gl=KR&ceid=KR:ko`;
       const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(rssUrl)}${cacheBuster}`;
       
       const res = await fetch(proxyUrl);
@@ -199,7 +205,7 @@ async function renderBriefing() {
     }
   }
 
-  // 3. UI 바인딩 및 화면 표시
+  // 3. 화면 바인딩
   if (items.length > 0) {
     let newsHtml = `<ul class="briefing-list">`;
     items.forEach(item => {
@@ -217,9 +223,9 @@ async function renderBriefing() {
 
     let aiSummaryHtml = `
       <div class="briefing-top">
-        <span style="font-size: 0.8rem; color: #978cff; font-weight: 700; display: block; margin-bottom: 8px;">🤖 AI 증시 브리핑</span>
+        <span style="font-size: 0.8rem; color: #978cff; font-weight: 700; display: block; margin-bottom: 8px;">🤖 AI 증시 브리핑 (${randomKeyword.replace(" 헤드라인", "").replace(" 시황", "")})</span>
         <p class="briefing-summary">
-          오늘의 핵심 증시 이슈를 실시간으로 점검 중입니다. 
+          실시간 <b>'${randomKeyword}'</b> 관련 핵심 이슈를 점검 중입니다. 
           주요 헤드라인 지표와 시장 흐름을 바탕으로 포트폴리오 리스크를 관리해 보세요.
         </p>
       </div>
@@ -230,7 +236,10 @@ async function renderBriefing() {
       briefingContainer.hidden = false;
     }
     if (briefingLoading) briefingLoading.style.display = "none";
-    if (briefingDate) briefingDate.textContent = `최신 정보 (${new Date().toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit', second:'2-digit'})})`;
+    
+    // 현재 시각 초단위 표기
+    const nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    if (briefingDate) briefingDate.textContent = `최신 정보 (${nowStr})`;
   } else {
     if (briefingLoading) {
       briefingLoading.style.display = "block";
