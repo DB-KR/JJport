@@ -101,5 +101,18 @@ dialog form{padding:26px}
 .form-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:27px}
 .secondary-button{color:#d9d9e3;background:transparent;border-color:#3c435d}
 
+/* 뉴스 브리핑 폰트 통일 */
+#briefing,
+.briefing-card,
+.briefing-summary,
+.briefing-list li a,
+.briefing-list li p {
+  font-family: 'Noto Sans KR', 'Manrope', -apple-system, sans-serif !important;
+}
+
+/* 언론사 출처 폰트 */
+.briefing-source {
+  font-family: 'DM Mono', monospace !important;
+}
 @media(max-width:1000px){.hero-grid{grid-template-columns:1fr 1fr}.total-card{grid-column:span 2}.allocation-card{display:none}}
 @media(max-width:680px){.shell{display:block}.sidebar{display:none}main{padding:28px 17px}.topbar{margin-bottom:26px}.as-of,.icon-button{display:none}h1{font-size:22px}.hero-grid{display:block}.hero-grid>.card{margin-bottom:12px}.total-card{min-height:240px}.highlight-card{min-height:130px}.section-heading{margin-top:35px}.form-grid{grid-template-columns:1fr}dialog form{padding:20px}}
