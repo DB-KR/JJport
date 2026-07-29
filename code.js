@@ -459,3 +459,72 @@ document.addEventListener("DOMContentLoaded", () => {
     simSection.addEventListener("change", runSimulators);
   }
 });
+
+// =========================================================
+// 🚀 강제 실행 연동 로직
+// =========================================================
+(function initSimulators() {
+  function parseSimNum(val) {
+    if (!val) return 0;
+    const clean = String(val).replace(/,/g, "").trim();
+    const num = parseFloat(clean);
+    return isNaN(num) ? 0 : num;
+  }
+
+  function formatSimKRW(num) {
+    return "₩" + Math.round(num).toLocaleString("ko-KR");
+  }
+
+  function runSim() {
+    // 1. 배당 시뮬레이터
+    const reinvest = document.getElementById("dividend-reinvest")?.checked ?? true;
+    const divInit = parseSimNum(document.getElementById("dividend-initial")?.value);
+    const divMonthly = parseSimNum(document.getElementById("dividend-monthly")?.value);
+    const divYield = parseSimNum(document.getElementById("dividend-yield")?.value) / 100;
+    const divYears = parseSimNum(document.getElementById("dividend-years")?.value);
+
+    let divTotal = divInit;
+    let divIncome = 0;
+    const mYield = divYield / 12;
+
+    for (let m = 1; m <= divYears * 12; m++) {
+      const curDiv = divTotal * mYield;
+      divIncome += curDiv;
+      if (reinvest) divTotal += curDiv;
+      divTotal += divMonthly;
+    }
+
+    const divTotalEl = document.getElementById("dividend-total");
+    const divIncomeEl = document.getElementById("dividend-income");
+    if (divTotalEl) divTotalEl.textContent = formatSimKRW(divTotal);
+    if (divIncomeEl) divIncomeEl.textContent = formatSimKRW(divIncome);
+
+    // 2. S&P 500 시뮬레이터
+    const spInit = parseSimNum(document.getElementById("sp-initial")?.value);
+    const spMonthly = parseSimNum(document.getElementById("sp-monthly")?.value);
+    const spFx = parseSimNum(document.getElementById("sp-exchange-rate")?.value);
+    const spReturn = parseSimNum(document.getElementById("sp-return")?.value) / 100;
+    const spYears = parseSimNum(document.getElementById("sp-years")?.value);
+
+    let spTotalUsd = spInit;
+    let spContribUsd = spInit + (spMonthly * spYears * 12);
+    const mReturn = spReturn / 12;
+
+    for (let m = 1; m <= spYears * 12; m++) {
+      spTotalUsd = spTotalUsd * (1 + mReturn) + spMonthly;
+    }
+
+    const spTotalEl = document.getElementById("sp-total");
+    const spContribEl = document.getElementById("sp-contribution");
+    if (spTotalEl) spTotalEl.textContent = formatSimKRW(spTotalUsd * spFx);
+    if (spContribEl) spContribEl.textContent = formatSimKRW(spContribUsd * spFx);
+  }
+
+  // 화면 로드 즉시 1회 연산
+  setTimeout(runSim, 100);
+  window.addEventListener("load", runSim);
+
+  // 실시간 입력 감지
+  document.addEventListener("input", runSim);
+  document.addEventListener("change", runSim);
+})();
