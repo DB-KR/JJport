@@ -145,12 +145,12 @@
                   <tr>
                     <th>자산/대출명</th>
                     <th>분류</th>
-                    <th>보유 수량/회차</th>
+                    <th>수량/회차</th>
                     <th>평균 취득가</th>
-                    <th>현재가 / 대출잔액</th>
+                    <th>현재가 / 잔액</th>
                     <th>평가금액</th>
-                    <th>손익 (%) / 월 원리금</th>
-                    <th>달러 산출</th>
+                    <th>손익 (%) / 월 상환액</th>
+                    <th>관리</th>
                   </tr>
                 </thead>
                 <tbody id="holdings-body"></tbody>
@@ -252,11 +252,12 @@
       </main>
     </div>
 
-    <!-- 💡 거래 및 대출 원리금 등록 통합 모달 -->
+    <!-- 💡 등록 / 수정 통합 모달 -->
     <dialog id="tx-modal">
       <form id="tx-form" method="dialog">
+        <input type="hidden" id="edit-tx-id" value="" />
         <div class="modal-heading">
-          <div><p class="eyebrow">NEW RECORD</p><h2>자산 / 대출 기록하기</h2></div>
+          <div><p class="eyebrow" id="modal-eyebrow">NEW RECORD</p><h2 id="modal-title">자산 / 대출 기록하기</h2></div>
           <button class="close" type="button" id="close-tx-modal" aria-label="닫기">×</button>
         </div>
         <div class="form-grid">
@@ -294,13 +295,13 @@
           </label>
 
           <label id="type-label">구분
-            <select name="type">
+            <select name="type" id="tx-type">
               <option value="BUY">매수 (BUY)</option>
               <option value="SELL">매도 (SELL)</option>
             </select>
           </label>
 
-          <label>항목명 / 대출명<input required name="name" placeholder="예: AAPL, 주담대, 반포자이" /></label>
+          <label>항목명 / 대출명<input required id="tx-name" name="name" placeholder="예: AAPL, 주담대, 반포자이" /></label>
           
           <label>통화
             <select name="currency" id="tx-currency">
@@ -310,19 +311,19 @@
           </label>
 
           <!-- 일반 자산 입력 필드 -->
-          <label class="asset-field">수량<input min="0.0001" step="any" type="number" name="quantity" placeholder="1" value="1" /></label>
-          <label class="asset-field">거래 단가<input min="0" step="any" type="number" name="price" placeholder="0" /></label>
-          <label class="asset-field">현재가 (시세)<input min="0" step="any" type="number" name="currentPrice" placeholder="0" /></label>
+          <label class="asset-field">수량<input id="tx-qty" min="0.0001" step="any" type="number" name="quantity" placeholder="1" value="1" /></label>
+          <label class="asset-field">거래 단가 / 매입가<input id="tx-price" min="0" step="any" type="number" name="price" placeholder="0" /></label>
+          <label class="asset-field">현재가 (시세)<input id="tx-curr-price" min="0" step="any" type="number" name="currentPrice" placeholder="0" /></label>
 
-          <!-- 💡 대출 전용 원리금 상환 입력 필드 (대출 선택 시에만 노출) -->
-          <label class="loan-field" style="display: none;">대출 원금 (원)<input type="number" name="loanAmount" placeholder="예: 300000000" /></label>
-          <label class="loan-field" style="display: none;">연 이자율 (%)<input type="number" step="0.01" name="interestRate" placeholder="예: 4.2" /></label>
-          <label class="loan-field" style="display: none;">상환 기간 (개월)<input type="number" name="loanTermMonths" placeholder="예: 360 (30년)" /></label>
+          <!-- 대출 전용 원리금 상환 입력 필드 -->
+          <label class="loan-field" style="display: none;">대출 원금 (원)<input id="tx-loan-amount" type="number" name="loanAmount" placeholder="예: 300000000" /></label>
+          <label class="loan-field" style="display: none;">연 이자율 (%)<input id="tx-loan-rate" type="number" step="0.01" name="interestRate" placeholder="예: 4.2" /></label>
+          <label class="loan-field" style="display: none;">상환 기간 (개월)<input id="tx-loan-term" type="number" name="loanTermMonths" placeholder="예: 360 (30년)" /></label>
         </div>
 
         <div class="form-actions">
           <button class="secondary-button" type="button" id="cancel-tx-modal">취소</button>
-          <button class="primary-button" type="submit">기록 저장</button>
+          <button class="primary-button" type="submit" id="save-btn">기록 저장</button>
         </div>
       </form>
     </dialog>
