@@ -403,15 +403,16 @@ document.addEventListener("DOMContentLoaded", () => {
   let liveUsdKrwRate = 1400; // 기본 고정 환율 (API 로딩 전 백업)
   let allocationChartInstance = null;
 
-  // 자산 분류별 테마 색상 정의
-  const categoryColors = {
-    "국내주식": "#6366f1",
-    "해외주식": "#10b981",
-    "ETF": "#f59e0b",
-    "채권": "#3b82f6",
-    "가상자산": "#ec4899",
-    "현금": "#64748b"
-  };
+// 자산 분류별 테마 색상 정의 (부동산, 대출 추가)
+const categoryColors = {
+  "국내주식": "#6366f1",
+  "해외주식": "#10b981",
+  "부동산": "#eab308", // 황금/주황 계열
+  "채권": "#3b82f6",
+  "가상자산": "#ec4899",
+  "현금": "#64748b",
+  "대출": "#ef4444"  // 빨간색 계열
+};
 
   // 1️⃣ 실시간 환율 수신
   async function updateExchangeRate() {
