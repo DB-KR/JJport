@@ -319,3 +319,16 @@ table th,
   padding: 12px 16px;            /* 여백을 살짝 늘려 답답함 해소 */
   letter-spacing: -0.3px;        /* 가독성을 위한 자간 조정 */
 }
+
+/* 보유 자산 표 헤더 스타일 통일 */
+table th, 
+.asset-table th {
+  font-family: inherit !important;     /* 전체 웹사이트 폰트 스타일 100% 상속 */
+  font-size: 0.95rem !important;        /* 주변 본문과 균형을 맞춘 적절한 크기 */
+  font-weight: 600 !important;          /* 과하지 않고 깔끔한 굵기 */
+  color: #94a3b8 !important;            /* 다른 보조 텍스트들과 동일한 톤앤매너 색상 */
+  text-align: left;                     /* 정렬 통일 */
+  padding: 12px 14px;                   /* 답답하지 않은 깔끔한 여백 */
+  border-bottom: 1px solid #334155;     /* 테이블 경계선 톤 통일 */
+  letter-spacing: -0.02em;              /* 자간 정돈 */
+}
