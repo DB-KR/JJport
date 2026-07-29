@@ -179,7 +179,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 // =========================================================
-// 📈 투자 시뮬레이터 (배당 & S&P 500) 완벽 연동 모듈
+// 📈 투자 시뮬레이터 (배당 & S&P 500) 완벽 연동 + 천단위 콤마 자동 서식
 // =========================================================
 
 (function initSimulators() {
@@ -194,6 +194,31 @@ document.addEventListener("DOMContentLoaded", () => {
   // 원화(₩) 포맷팅
   function formatSimKRW(num) {
     return "₩" + Math.round(num).toLocaleString("ko-KR");
+  }
+
+  // input 입력값에 3자리 단위 콤마 적용하는 함수
+  function formatInputWithCommas(inputEl) {
+    if (!inputEl) return;
+    // 연 수익률(%), 투자기간(년) 등 step이 있거나 소수점이 필요한 필드는 콤마 제외
+    if (inputEl.type === "number" || inputEl.id.includes("yield") || inputEl.id.includes("return") || inputEl.id.includes("years")) {
+      return;
+    }
+
+    const originalValue = inputEl.value;
+    const rawValue = originalValue.replace(/,/g, "");
+    
+    // 숫자 이외의 문자 제거
+    if (!/^\d*$/.test(rawValue)) {
+      inputEl.value = originalValue.replace(/[^\d,]/g, "");
+      return;
+    }
+
+    if (rawValue) {
+      const formatted = Number(rawValue).toLocaleString("ko-KR");
+      if (inputEl.value !== formatted) {
+        inputEl.value = formatted;
+      }
+    }
   }
 
   function runSim() {
@@ -241,11 +266,38 @@ document.addEventListener("DOMContentLoaded", () => {
     if (spContribEl) spContribEl.textContent = formatSimKRW(spContribUsd * spFx);
   }
 
-  // 화면 로드 즉시 1회 연산 실행
-  setTimeout(runSim, 100);
-  window.addEventListener("load", runSim);
+  // 초기 로드 시 기존 기본값에도 콤마 적용
+  function applyInitialFormatting() {
+    const simSection = document.getElementById("simulators");
+    if (simSection) {
+      const inputs = simSection.querySelectorAll("input");
+      inputs.forEach(input => formatInputWithCommas(input));
+    }
+  }
 
-  // 실시간 입력 감지 이벤트 등록
-  document.addEventListener("input", runSim);
-  document.addEventListener("change", runSim);
+  // 화면 로드 즉시 실행
+  setTimeout(() => {
+    applyInitialFormatting();
+    runSim();
+  }, 100);
+
+  window.addEventListener("load", () => {
+    applyInitialFormatting();
+    runSim();
+  });
+
+  // 실시간 입력 감지 및 콤마 서식 적용
+  document.addEventListener("input", (e) => {
+    if (e.target.closest("#simulators")) {
+      formatInputWithCommas(e.target);
+      runSim();
+    }
+  });
+
+  document.addEventListener("change", (e) => {
+    if (e.target.closest("#simulators")) {
+      formatInputWithCommas(e.target);
+      runSim();
+    }
+  });
 })();
