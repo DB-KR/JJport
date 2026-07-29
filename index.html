@@ -30,107 +30,107 @@
       </aside>
 
       <main>
-  <!-- 1. 자산 개요 -->
-  <section id="overview" class="hero-grid" aria-label="포트폴리오 요약">
-    <article class="card total-card">
-      <p class="card-label">순자산</p>
-      <div class="value-row"><strong id="net-worth">₩0</strong><span class="trend neutral" id="net-trend">—</span></div>
-      <div class="portfolio-line"><span>투자 자산 <b id="invested-value">₩0</b></span><span>현금 <b id="cash-value">₩0</b></span></div>
-      <svg class="line-chart" viewBox="0 0 600 120" preserveAspectRatio="none" role="img" aria-label="자산 추이"><defs><linearGradient id="fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#8a7cff" stop-opacity=".28"/><stop offset="100%" stop-color="#8a7cff" stop-opacity="0"/></linearGradient></defs><path d="M0,100 C35,92 50,95 78,78 S120,65 145,74 S180,56 205,66 S245,42 275,52 S315,58 345,31 S390,39 420,25 S462,46 492,32 S540,12 600,18 L600,120 L0,120Z" fill="url(#fill)"/><path d="M0,100 C35,92 50,95 78,78 S120,65 145,74 S180,56 205,66 S245,42 275,52 S315,58 345,31 S390,39 420,25 S462,46 492,32 S540,12 600,18" fill="none" stroke="#978cff" stroke-width="2.5" vector-effect="non-scaling-stroke"/></svg>
-    </article>
-    <article class="card highlight-card">
-      <div>
-        <p class="card-label">전체 평가손익</p>
-        <strong id="monthly-profit">₩0</strong>
-        <p class="soft" id="monthly-detail">거래를 추가해 시작하세요</p>
-      </div>
-      <span class="sparkle">✦</span>
-      <div class="rank-panel">
-        <div><p class="card-label">대한민국 30대 기준</p><strong class="rank-value" id="rank-percent">—</strong><span class="rank-unit">추정 상위</span></div>
-        <div class="rank-meter"><i id="rank-bar"></i></div>
-        <p class="rank-caption" id="rank-caption">자산을 추가하면 비교해 드려요</p>
-      </div>
-    </article>
-    <article class="card allocation-card" id="allocation">
-      <p class="card-label">자산 배분</p>
-      <div class="donut-wrap">
-        <div class="donut" id="donut"><span id="asset-count">0</span><small>종목</small></div>
-        <ul class="legend" id="legend"></ul>
-      </div>
-    </article>
-  </section>
+        <!-- 1. 자산 개요 -->
+        <section id="overview" class="hero-grid" aria-label="포트폴리오 요약">
+          <article class="card total-card">
+            <p class="card-label">순자산</p>
+            <div class="value-row"><strong id="net-worth">₩0</strong><span class="trend neutral" id="net-trend">—</span></div>
+            <div class="portfolio-line"><span>투자 자산 <b id="invested-value">₩0</b></span><span>현금 <b id="cash-value">₩0</b></span></div>
+            <svg class="line-chart" viewBox="0 0 600 120" preserveAspectRatio="none" role="img" aria-label="자산 추이"><defs><linearGradient id="fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#8a7cff" stop-opacity=".28"/><stop offset="100%" stop-color="#8a7cff" stop-opacity="0"/></linearGradient></defs><path d="M0,100 C35,92 50,95 78,78 S120,65 145,74 S180,56 205,66 S245,42 275,52 S315,58 345,31 S390,39 420,25 S462,46 492,32 S540,12 600,18 L600,120 L0,120Z" fill="url(#fill)"/><path d="M0,100 C35,92 50,95 78,78 S120,65 145,74 S180,56 205,66 S245,42 275,52 S315,58 345,31 S390,39 420,25 S462,46 492,32 S540,12 600,18" fill="none" stroke="#978cff" stroke-width="2.5" vector-effect="non-scaling-stroke"/></svg>
+          </article>
+          <article class="card highlight-card">
+            <div>
+              <p class="card-label">전체 평가손익</p>
+              <strong id="monthly-profit">₩0</strong>
+              <p class="soft" id="monthly-detail">거래를 추가해 시작하세요</p>
+            </div>
+            <span class="sparkle">✦</span>
+            <div class="rank-panel">
+              <div><p class="card-label">대한민국 30대 기준</p><strong class="rank-value" id="rank-percent">—</strong><span class="rank-unit">추정 상위</span></div>
+              <div class="rank-meter"><i id="rank-bar"></i></div>
+              <p class="rank-caption" id="rank-caption">자산을 추가하면 비교해 드려요</p>
+            </div>
+          </article>
+          <article class="card allocation-card" id="allocation">
+            <p class="card-label">자산 배분</p>
+            <div class="donut-wrap">
+              <div class="donut" id="donut"><span id="asset-count">0</span><small>종목</small></div>
+              <ul class="legend" id="legend"></ul>
+            </div>
+          </article>
+        </section>
 
-  <!-- 2. 뉴스 브리핑 -->
-  <section id="briefing" style="margin-top: 40px;">
-    <div class="section-heading briefing-heading">
-      <div><p class="eyebrow">07:00 · 22:00 KST BRIEFING</p><h2>오늘의 주요 주식 뉴스</h2></div>
-      <div class="briefing-actions">
-        <span class="briefing-date" id="briefing-date">불러오는 중</span>
-        <button class="secondary-button briefing-refresh" id="refresh-briefing" type="button">현 시점에서 불러오기</button>
-      </div>
-    </div>
-    <div class="card briefing-card" id="news">
-      <div class="briefing-loading" id="briefing-loading">아침 브리핑을 불러오고 있어요.</div>
-      <div id="briefing-content" hidden></div>
-    </div>
-  </section>
+        <!-- 2. 뉴스 브리핑 -->
+        <section id="briefing" style="margin-top: 40px;">
+          <div class="section-heading briefing-heading">
+            <div><p class="eyebrow">07:00 · 22:00 KST BRIEFING</p><h2>오늘의 주요 주식 뉴스</h2></div>
+            <div class="briefing-actions">
+              <span class="briefing-date" id="briefing-date">불러오는 중</span>
+              <button class="secondary-button briefing-refresh" id="refresh-briefing" type="button">현 시점에서 불러오기</button>
+            </div>
+          </div>
+          <div class="card briefing-card" id="news">
+            <div class="briefing-loading" id="briefing-loading">아침 브리핑을 불러오고 있어요.</div>
+            <div id="briefing-content" hidden></div>
+          </div>
+        </section>
 
-  <!-- 3. 보유 자산 -->
-  <section id="holdings" style="margin-top: 40px;">
-    <div class="section-heading"><div><p class="eyebrow">HOLDINGS</p><h2>보유 자산</h2></div><button class="primary-button" id="open-modal">＋ 자산 추가</button></div>
-    <div class="card table-card">
-      <div class="table-scroll">
-        <table>
-          <thead><tr><th>자산</th><th>보유 수량</th><th>평균 매입가</th><th>현재가</th><th>평가금액</th><th>수익률</th><th></th></tr></thead>
-          <tbody id="holdings-body"></tbody>
-        </table>
-      </div>
-      <div class="empty-state" id="empty-state"><span>◇</span><p>아직 보유 자산이 없습니다.</p><button class="text-button" id="empty-add">첫 자산 추가하기</button></div>
-    </div>
-    <p class="privacy-note">순위는 입력한 보유자산 기준의 추정치입니다. 부동산·부채를 포함한 실제 순자산을 입력해야 비교 정확도가 높아집니다. <a href="https://www.kostat.go.kr/board.es?act=view&bid=215&list_no=439535&mid=a10301010000" target="_blank" rel="noreferrer">2025 가계금융복지조사 기준</a></p>
-  </section>
+        <!-- 3. 보유 자산 -->
+        <section id="holdings" style="margin-top: 40px;">
+          <div class="section-heading"><div><p class="eyebrow">HOLDINGS</p><h2>보유 자산</h2></div><button class="primary-button" id="open-modal">＋ 자산 추가</button></div>
+          <div class="card table-card">
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>자산</th><th>보유 수량</th><th>평균 매입가</th><th>현재가</th><th>평가금액</th><th>수익률</th><th></th></tr></thead>
+                <tbody id="holdings-body"></tbody>
+              </table>
+            </div>
+            <div class="empty-state" id="empty-state"><span>◇</span><p>아직 보유 자산이 없습니다.</p><button class="text-button" id="empty-add">첫 자산 추가하기</button></div>
+          </div>
+          <p class="privacy-note">순위는 입력한 보유자산 기준의 추정치입니다. 부동산·부채를 포함한 실제 순자산을 입력해야 비교 정확도가 높아집니다. <a href="https://www.kostat.go.kr/board.es?act=view&bid=215&list_no=439535&mid=a10301010000" target="_blank" rel="noreferrer">2025 가계금융복지조사 기준</a></p>
+        </section>
 
-  <!-- 4. 투자 시뮬레이터 -->
-  <section id="simulators" style="margin-top: 40px;">
-    <div class="section-heading simulator-heading">
-      <div><p class="eyebrow">PLANNING LAB</p><h2>투자 시뮬레이터</h2></div>
-      <span class="simulator-note">가정에 따른 예상치입니다</span>
-    </div>
-    <div class="simulator-grid" aria-label="투자 시뮬레이터">
-      <article class="card simulator-card">
-        <div class="simulator-title"><div><p class="eyebrow">DIVIDEND</p><h3>배당 시뮬레이터</h3></div><label class="reinvest-switch"><input id="dividend-reinvest" type="checkbox" checked /><span>배당 재투자</span></label></div>
-        <div class="sim-inputs">
-          <label>초기 투자금<input id="dividend-initial" type="number" min="0" step="100000" value="10000000" /><small>원</small></label>
-          <label>월 추가 투자<input id="dividend-monthly" type="number" min="0" step="100000" value="500000" /><small>원</small></label>
-          <label>연 배당수익률<input id="dividend-yield" type="number" min="0" max="30" step="0.1" value="4" /><small>%</small></label>
-          <label>투자 기간<input id="dividend-years" type="number" min="1" max="50" step="1" value="10" /><small>년</small></label>
-        </div>
-        <div class="sim-results">
-          <div><span>예상 자산</span><strong id="dividend-total">₩0</strong></div>
-          <div><span>누적 배당금</span><strong id="dividend-income">₩0</strong></div>
-        </div>
-        <div class="sim-chart-wrap" id="dividend-chart"></div>
-        <p class="sim-caption" id="dividend-caption"></p>
-      </article>
-      <article class="card simulator-card">
-        <div class="simulator-title"><div><p class="eyebrow">INDEX INVESTING</p><h3>S&P 500 시뮬레이터</h3></div><span class="sim-badge">장기 적립식</span></div>
-        <div class="sim-inputs">
-          <label>초기 투자금<input id="sp-initial" type="number" min="0" step="100" value="10000" /><small>USD</small></label>
-          <label>월 추가 투자<input id="sp-monthly" type="number" min="0" step="50" value="500" /><small>USD</small></label>
-          <label>적용 환율<input id="sp-exchange-rate" type="number" min="1" step="1" value="1400" /><small>원/USD</small></label>
-          <label>연 수익률 가정<input id="sp-return" type="number" min="-20" max="30" step="0.1" value="10" /><small>%</small></label>
-          <label>투자 기간<input id="sp-years" type="number" min="1" max="50" step="1" value="20" /><small>년</small></label>
-        </div>
-        <div class="sim-results">
-          <div><span>예상 자산</span><strong id="sp-total">₩0</strong></div>
-          <div><span>총 납입금</span><strong id="sp-contribution">₩0</strong></div>
-        </div>
-        <div class="sim-chart-wrap" id="sp-chart"></div>
-        <p class="sim-caption" id="sp-caption"></p>
-      </article>
-    </div>
-  </section>
-</main>
+        <!-- 4. 투자 시뮬레이터 -->
+        <section id="simulators" style="margin-top: 40px;">
+          <div class="section-heading simulator-heading">
+            <div><p class="eyebrow">PLANNING LAB</p><h2>투자 시뮬레이터</h2></div>
+            <span class="simulator-note">가정에 따른 예상치입니다</span>
+          </div>
+          <div class="simulator-grid" aria-label="투자 시뮬레이터">
+            <article class="card simulator-card">
+              <div class="simulator-title"><div><p class="eyebrow">DIVIDEND</p><h3>배당 시뮬레이터</h3></div><label class="reinvest-switch"><input id="dividend-reinvest" type="checkbox" checked /><span>배당 재투자</span></label></div>
+              <div class="sim-inputs">
+                <label>초기 투자금<input id="dividend-initial" type="text" inputmode="numeric" value="10,000,000" /><small>원</small></label>
+                <label>월 추가 투자<input id="dividend-monthly" type="text" inputmode="numeric" value="500,000" /><small>원</small></label>
+                <label>연 배당수익률<input id="dividend-yield" type="number" min="0" max="30" step="0.1" value="4" /><small>%</small></label>
+                <label>투자 기간<input id="dividend-years" type="number" min="1" max="50" step="1" value="10" /><small>년</small></label>
+              </div>
+              <div class="sim-results">
+                <div><span>예상 자산</span><strong id="dividend-total">₩0</strong></div>
+                <div><span>누적 배당금</span><strong id="dividend-income">₩0</strong></div>
+              </div>
+              <div class="sim-chart-wrap" id="dividend-chart"></div>
+              <p class="sim-caption" id="dividend-caption"></p>
+            </article>
+            <article class="card simulator-card">
+              <div class="simulator-title"><div><p class="eyebrow">INDEX INVESTING</p><h3>S&P 500 시뮬레이터</h3></div><span class="sim-badge">장기 적립식</span></div>
+              <div class="sim-inputs">
+                <label>초기 투자금<input id="sp-initial" type="text" inputmode="numeric" value="10,000" /><small>USD</small></label>
+                <label>월 추가 투자<input id="sp-monthly" type="text" inputmode="numeric" value="500" /><small>USD</small></label>
+                <label>적용 환율<input id="sp-exchange-rate" type="text" inputmode="numeric" value="1,400" /><small>원/USD</small></label>
+                <label>연 수익률 가정<input id="sp-return" type="number" min="-20" max="30" step="0.1" value="10" /><small>%</small></label>
+                <label>투자 기간<input id="sp-years" type="number" min="1" max="50" step="1" value="20" /><small>년</small></label>
+              </div>
+              <div class="sim-results">
+                <div><span>예상 자산</span><strong id="sp-total">₩0</strong></div>
+                <div><span>총 납입금</span><strong id="sp-contribution">₩0</strong></div>
+              </div>
+              <div class="sim-chart-wrap" id="sp-chart"></div>
+              <p class="sim-caption" id="sp-caption"></p>
+            </article>
+          </div>
+        </section>
+      </main>
     </div>
 
     <dialog id="asset-modal">
