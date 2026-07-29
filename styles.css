@@ -101,18 +101,48 @@ dialog form{padding:26px}
 .form-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:27px}
 .secondary-button{color:#d9d9e3;background:transparent;border-color:#3c435d}
 
-/* 뉴스 브리핑 폰트 통일 */
+/* ==========================================
+   뉴스 브리핑 영역 디자인 & 폰트 개선
+   ========================================== */
+
+/* 1. 뉴스 영역 전체 폰트 및 글자색 적용 */
 #briefing,
+#briefing *,
 .briefing-card,
 .briefing-summary,
 .briefing-list li a,
 .briefing-list li p {
   font-family: 'Noto Sans KR', 'Manrope', -apple-system, sans-serif !important;
+  color: #e2e8f0 !important; /* 눈이 편안한 밝은 회색 */
 }
 
-/* 언론사 출처 폰트 */
+/* 2. 파란색 뉴스 제목 링크를 깔끔한 톤으로 변경 */
+.briefing-list li a {
+  color: #ffffff !important; /* 기본 흰색 글씨 */
+  text-decoration: none !important; /* 촌스러운 밑줄 제거 */
+  font-weight: 600 !important;
+  font-size: 1.05rem !important;
+  line-height: 1.5 !important;
+  transition: color 0.2s ease !important;
+}
+
+/* 뉴스 제목에 마우스 올렸을 때 살짝 밝아지도록 */
+.briefing-list li a:hover {
+  color: #978cff !important; /* 대시보드 테마 보라색 포인트 */
+  text-decoration: underline !important;
+}
+
+/* 3. 뉴스 요약문 글자 크기 및 여백 정돈 */
+.briefing-list li p {
+  color: #94a3b8 !important; /* 소프트한 부드러운 회색 */
+  font-size: 0.92rem !important;
+  margin-top: 6px !important;
+  line-height: 1.6 !important;
+}
+
+/* 4. 언론사 출처 표기 */
 .briefing-source {
   font-family: 'DM Mono', monospace !important;
+  color: #64748b !important;
+  font-size: 0.8rem !important;
 }
-@media(max-width:1000px){.hero-grid{grid-template-columns:1fr 1fr}.total-card{grid-column:span 2}.allocation-card{display:none}}
-@media(max-width:680px){.shell{display:block}.sidebar{display:none}main{padding:28px 17px}.topbar{margin-bottom:26px}.as-of,.icon-button{display:none}h1{font-size:22px}.hero-grid{display:block}.hero-grid>.card{margin-bottom:12px}.total-card{min-height:240px}.highlight-card{min-height:130px}.section-heading{margin-top:35px}.form-grid{grid-template-columns:1fr}dialog form{padding:20px}}
