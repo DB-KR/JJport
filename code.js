@@ -179,11 +179,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 // =========================================================
-// 📈 투자 시뮬레이터 (배당 & S&P 500) 완벽 연동 + 천단위 콤마 자동 서식
+// 📈 투자 시뮬레이터 + 차트 시각화(Chart.js) + 실시간 환율 연동
 // =========================================================
 
-(function initSimulators() {
-  // 숫자에 포함된 콤마(,) 제거 후 float 변환
+(function initAdvancedSimulators() {
+  let simChartInstance = null; // 차트 인스턴스 전역 관리
+
+  // 콤마 제거 후 숫자 변환
   function parseSimNum(val) {
     if (!val) return 0;
     const clean = String(val).replace(/,/g, "").trim();
@@ -191,28 +193,23 @@ document.addEventListener("DOMContentLoaded", () => {
     return isNaN(num) ? 0 : num;
   }
 
-  // 원화(₩) 포맷팅
+  // 원화 포맷팅
   function formatSimKRW(num) {
     return "₩" + Math.round(num).toLocaleString("ko-KR");
   }
 
-  // input 입력값에 3자리 단위 콤마 적용하는 함수
+  // input 3자리 콤마 포맷팅
   function formatInputWithCommas(inputEl) {
     if (!inputEl) return;
-    // 연 수익률(%), 투자기간(년) 등 step이 있거나 소수점이 필요한 필드는 콤마 제외
     if (inputEl.type === "number" || inputEl.id.includes("yield") || inputEl.id.includes("return") || inputEl.id.includes("years")) {
       return;
     }
-
     const originalValue = inputEl.value;
     const rawValue = originalValue.replace(/,/g, "");
-    
-    // 숫자 이외의 문자 제거
     if (!/^\d*$/.test(rawValue)) {
       inputEl.value = originalValue.replace(/[^\d,]/g, "");
       return;
     }
-
     if (rawValue) {
       const formatted = Number(rawValue).toLocaleString("ko-KR");
       if (inputEl.value !== formatted) {
@@ -221,23 +218,132 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // 💱 1. 실시간 환율 가져오기 (open.er-api.com)
+  async function fetchLiveExchangeRate() {
+    const spExchangeInput = document.getElementById("sp-exchange-rate");
+    if (!spExchangeInput) return;
+
+    try {
+      const res = await fetch("https://open.er-api.com/v6/latest/USD");
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.rates && data.rates.KRW) {
+          const liveRate = Math.round(data.rates.KRW);
+          spExchangeInput.value = liveRate.toLocaleString("ko-KR");
+          // 환율 갱신 후 시뮬레이터 및 차트 바로 재계산
+          runSim();
+        }
+      }
+    } catch (e) {
+      console.warn("실시간 환율 로딩 실패, 기본 입력값 유지:", e);
+    }
+  }
+
+  // 📊 2. Chart.js 차트 그리기/업데이트 함수
+  function updateChart(divDataPoints, spDataPoints, years) {
+    const chartContainer = document.querySelector(".sim-chart-wrap");
+    if (!chartContainer) return;
+
+    // 차트용 canvas 생성 및 확인
+    let canvas = chartContainer.querySelector("canvas");
+    if (!canvas) {
+      chartContainer.innerHTML = '<canvas id="simCanvas" style="max-height: 280px; width: 100%;"></canvas>';
+      canvas = document.getElementById("simCanvas");
+    }
+
+    // Chart.js 라이브러리가 로드되었는지 체크
+    if (typeof Chart === "undefined") return;
+
+    const labels = Array.from({ length: years + 1 }, (_, i) => `${i}년후`);
+
+    // 기존 차트가 있다면 파괴 후 다시 생성 (메모리 누수 방지)
+    if (simChartInstance) {
+      simChartInstance.destroy();
+    }
+
+    const ctx = canvas.getContext("2d");
+    simChartInstance = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: "배당 자산 성장",
+            data: divDataPoints,
+            borderColor: "#6366f1",
+            backgroundColor: "rgba(99, 102, 241, 0.1)",
+            fill: true,
+            tension: 0.3,
+            borderWidth: 2
+          },
+          {
+            label: "S&P 500 자산 성장",
+            data: spDataPoints,
+            borderColor: "#10b981",
+            backgroundColor: "rgba(16, 185, 129, 0.1)",
+            fill: true,
+            tension: 0.3,
+            borderWidth: 2
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            labels: { color: "#94a3b8", font: { size: 12 } }
+          },
+          tooltip: {
+            callbacks: {
+              label: (context) => `${context.dataset.label}: ₩${Math.round(context.raw).toLocaleString("ko-KR")}`
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: "rgba(255, 255, 255, 0.05)" },
+            ticks: { color: "#94a3b8" }
+          },
+          y: {
+            grid: { color: "rgba(255, 255, 255, 0.05)" },
+            ticks: {
+              color: "#94a3b8",
+              callback: (val) => "₩" + (val / 10000).toLocaleString("ko-KR") + "만"
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // 📈 3. 메인 시뮬레이터 연산
   function runSim() {
-    // 1. 배당 시뮬레이터 계산
+    // -----------------------------------------------------
+    // A. 배당 시뮬레이터 연산
+    // -----------------------------------------------------
     const reinvest = document.getElementById("dividend-reinvest")?.checked ?? true;
     const divInit = parseSimNum(document.getElementById("dividend-initial")?.value);
     const divMonthly = parseSimNum(document.getElementById("dividend-monthly")?.value);
     const divYield = parseSimNum(document.getElementById("dividend-yield")?.value) / 100;
-    const divYears = parseSimNum(document.getElementById("dividend-years")?.value);
+    const divYears = parseSimNum(document.getElementById("dividend-years")?.value) || 1;
 
     let divTotal = divInit;
     let divIncome = 0;
     const mYield = divYield / 12;
+
+    const divYearlyData = [divInit]; // 차트용 데이터 배열
 
     for (let m = 1; m <= divYears * 12; m++) {
       const curDiv = divTotal * mYield;
       divIncome += curDiv;
       if (reinvest) divTotal += curDiv;
       divTotal += divMonthly;
+
+      // 12개월(1년) 단위로 차트 포인트 저장
+      if (m % 12 === 0) {
+        divYearlyData.push(divTotal);
+      }
     }
 
     const divTotalEl = document.getElementById("dividend-total");
@@ -245,28 +351,42 @@ document.addEventListener("DOMContentLoaded", () => {
     if (divTotalEl) divTotalEl.textContent = formatSimKRW(divTotal);
     if (divIncomeEl) divIncomeEl.textContent = formatSimKRW(divIncome);
 
-    // 2. S&P 500 시뮬레이터 계산
+    // -----------------------------------------------------
+    // B. S&P 500 시뮬레이터 연산
+    // -----------------------------------------------------
     const spInit = parseSimNum(document.getElementById("sp-initial")?.value);
     const spMonthly = parseSimNum(document.getElementById("sp-monthly")?.value);
-    const spFx = parseSimNum(document.getElementById("sp-exchange-rate")?.value);
+    const spFx = parseSimNum(document.getElementById("sp-exchange-rate")?.value) || 1350;
     const spReturn = parseSimNum(document.getElementById("sp-return")?.value) / 100;
-    const spYears = parseSimNum(document.getElementById("sp-years")?.value);
+    const spYears = parseSimNum(document.getElementById("sp-years")?.value) || 1;
 
     let spTotalUsd = spInit;
     let spContribUsd = spInit + (spMonthly * spYears * 12);
     const mReturn = spReturn / 12;
 
+    const spYearlyData = [spInit * spFx]; // 차트용 데이터 배열 (원화 변환)
+
     for (let m = 1; m <= spYears * 12; m++) {
       spTotalUsd = spTotalUsd * (1 + mReturn) + spMonthly;
+
+      // 12개월(1년) 단위로 차트 포인트 저장
+      if (m % 12 === 0) {
+        spYearlyData.push(spTotalUsd * spFx);
+      }
     }
 
     const spTotalEl = document.getElementById("sp-total");
     const spContribEl = document.getElementById("sp-contribution");
     if (spTotalEl) spTotalEl.textContent = formatSimKRW(spTotalUsd * spFx);
     if (spContribEl) spContribEl.textContent = formatSimKRW(spContribUsd * spFx);
+
+    // -----------------------------------------------------
+    // C. 차트 실시간 연동
+    // -----------------------------------------------------
+    const maxYears = Math.max(divYears, spYears);
+    updateChart(divYearlyData, spYearlyData, maxYears);
   }
 
-  // 초기 로드 시 기존 기본값에도 콤마 적용
   function applyInitialFormatting() {
     const simSection = document.getElementById("simulators");
     if (simSection) {
@@ -275,18 +395,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // 화면 로드 즉시 실행
+  // 초기 로드 실행
   setTimeout(() => {
     applyInitialFormatting();
+    fetchLiveExchangeRate(); // 실시간 환율 자동 가져오기
     runSim();
   }, 100);
 
-  window.addEventListener("load", () => {
-    applyInitialFormatting();
-    runSim();
-  });
-
-  // 실시간 입력 감지 및 콤마 서식 적용
+  // 입력 감지 시 실시간 재계산 & 차트 업데이트
   document.addEventListener("input", (e) => {
     if (e.target.closest("#simulators")) {
       formatInputWithCommas(e.target);
