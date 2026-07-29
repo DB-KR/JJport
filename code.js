@@ -11,7 +11,6 @@
   const categoryColors = {
     "국내주식": "#6366f1",
     "해외주식": "#10b981",
-    "ETF": "#f59e0b",
     "부동산": "#eab308",
     "채권": "#3b82f6",
     "가상자산": "#ec4899",
@@ -96,8 +95,14 @@
 
     sortedTxs.forEach(tx => {
       const isUsd = tx.currency === "USD";
-      if (!holdingsMap[tx.name]) {
-        holdingsMap[tx.name] = {
+      
+      // 💡 부동산 및 대출은 동일 이름이더라도 개별 건으로 분리 관리
+      const isUniqueAsset = tx.category === "부동산" || tx.category === "대출";
+      const itemKey = isUniqueAsset ? `${tx.name}_${tx.id}` : tx.name;
+
+      if (!holdingsMap[itemKey]) {
+        holdingsMap[itemKey] = {
+          id: tx.id,
           name: tx.name,
           category: tx.category,
           currency: tx.currency,
@@ -107,7 +112,7 @@
         };
       }
 
-      const item = holdingsMap[tx.name];
+      const item = holdingsMap[itemKey];
       item.currentPrice = tx.currentPrice;
 
       if (tx.type === "BUY") {
@@ -231,6 +236,7 @@
     let grandTotal = 0;
 
     activeHoldings.forEach(h => {
+      if (h.category === "대출") return; // 부채는 차트 비중에서 제외
       const isUsd = h.currency === "USD";
       const valKrw = isUsd ? (h.qty * h.currentPrice) * liveUsdKrwRate : h.qty * h.currentPrice;
       catTotals[h.category] = (catTotals[h.category] || 0) + valKrw;
