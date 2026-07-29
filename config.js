@@ -1,0 +1,3 @@
+window.PORTFOLIO_CONFIG = {
+  BRIEFING_FUNCTION_URL: ""
+};
