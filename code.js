@@ -124,21 +124,45 @@ function renderGoal(total) {
   if (barFill) barFill.style.width = `${percent}%`;
 }
 
-// 6. 📰 실시간 뉴스 로딩 (오류 없이 가장 안정적인 3단계 백업 파이프라인)
+// 6. 📰 실시간 뉴스 로딩 (소요 시간 측정 & 원형 스피너 적용)
 async function renderBriefing() {
   const briefingContainer = document.getElementById("briefing-content");
   const briefingLoading = document.getElementById("briefing-loading");
   const briefingDate = document.getElementById("briefing-date");
 
-  // 1. UI 초기화
+  // ⏱️ 1. 시작 시간 기록
+  const startTime = performance.now();
+
+  // 2. UI 초기화 (원형 로딩 스피너 및 텍스트 적용)
   if (briefingLoading) {
-    briefingLoading.style.display = "block";
-    briefingLoading.textContent = "최신 주요 증시 뉴스를 탐색 중입니다...";
+    briefingLoading.style.display = "flex";
+    briefingLoading.style.alignItems = "center";
+    briefingLoading.style.justifyContent = "center";
+    briefingLoading.style.gap = "10px";
+    briefingLoading.innerHTML = `
+      <div style="
+        width: 18px; 
+        height: 18px; 
+        border: 3px solid rgba(151, 140, 255, 0.2); 
+        border-top: 3px solid #978cff; 
+        border-radius: 50%; 
+        animation: spin 0.8s linear infinite;"></div>
+      <span>최신 증시 이슈를 불러오는 중...</span>
+    `;
   }
+
+  // 회전 애니메이션 CSS를 동적으로 등록 (HTML/CSS 수정 불필요)
+  if (!document.getElementById("spinner-style")) {
+    const style = document.createElement("style");
+    style.id = "spinner-style";
+    style.innerHTML = `@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`;
+    document.head.appendChild(style);
+  }
+
   if (briefingContainer) briefingContainer.hidden = true;
   if (briefingDate) briefingDate.textContent = "갱신 중...";
 
-  // 버튼 누를 때마다 검색 키워드 전환 (구글 뉴스 서버 캐시 방지)
+  // 버튼 누를 때마다 검색 키워드 전환
   const keywords = [
     "주요 증시 헤드라인",
     "국내 증시 주식",
@@ -152,7 +176,7 @@ async function renderBriefing() {
 
   let items = [];
 
-  // [시도 1] AllOrigins 서비스 활용 (CORS 우회 성공률 가장 높음)
+  // [시도 1] AllOrigins 서비스 (1순위)
   try {
     const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(targetRss)}&_t=${Date.now()}`);
     if (res.ok) {
@@ -178,7 +202,7 @@ async function renderBriefing() {
     console.warn("1차 프록시 시도 실패, 2차 시도 전환...", e);
   }
 
-  // [시도 2] 1차 실패 시 rss2json 서비스로 2차 시도
+  // [시도 2] rss2json 서비스 (2순위)
   if (items.length === 0) {
     try {
       const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(targetRss)}&_t=${Date.now()}`);
@@ -190,7 +214,7 @@ async function renderBriefing() {
             title: parts[0],
             source: parts.length > 1 ? parts[parts.length - 1] : (item.author || "주요뉴스"),
             link: item.link,
-            time: item.pubDate ? new Date(item.pubDate).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : ""
+            time: item.pubDate ? new Date(pubDate).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : ""
           };
         });
       }
@@ -199,7 +223,11 @@ async function renderBriefing() {
     }
   }
 
-  // 3. UI 바인딩 및 화면 표시
+  // ⏱️ 3. 소요 시간 계산
+  const endTime = performance.now();
+  const duration = ((endTime - startTime) / 1000).toFixed(2); // 초 단위 (소수점 2자리)
+
+  // 4. UI 바인딩 및 출력
   if (items.length > 0) {
     let newsHtml = `<ul class="briefing-list">`;
     items.forEach(item => {
@@ -231,10 +259,11 @@ async function renderBriefing() {
     }
     if (briefingLoading) briefingLoading.style.display = "none";
     
+    // 소요 시간 표기 (예: 최신 정보 (12:30:15 / 0.45초))
     const nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    if (briefingDate) briefingDate.textContent = `최신 정보 (${nowStr})`;
+    if (briefingDate) briefingDate.textContent = `${nowStr} (${duration}초 소요)`;
   } else {
-    // 네트워크 장애 시 비상용 브리핑 데이터 안내
+    // 비상 모드
     if (briefingContainer) {
       briefingContainer.innerHTML = `
         <ul class="briefing-list">
@@ -255,13 +284,13 @@ async function renderBriefing() {
       briefingContainer.hidden = false;
     }
     if (briefingLoading) briefingLoading.style.display = "none";
-    if (briefingDate) briefingDate.textContent = "요약 정보";
+    if (briefingDate) briefingDate.textContent = `요약 정보 (${duration}초)`;
   }
 }
 
-// 4. 새로고침 버튼 클릭 이벤트 연동
+// 5. 버튼 클릭 이벤트
 document.addEventListener("DOMContentLoaded", () => {
-  renderBriefing(); // 처음에 뉴스 자동 로드
+  renderBriefing();
 
   const refreshBtn = document.getElementById("refresh-briefing");
   if (refreshBtn && !refreshBtn.dataset.bound) {
