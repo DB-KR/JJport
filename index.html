@@ -135,7 +135,9 @@
                 <div><span>예상 자산</span><strong id="dividend-total">₩0</strong></div>
                 <div><span>누적 배당금</span><strong id="dividend-income">₩0</strong></div>
               </div>
-              <div class="sim-chart-wrap" id="dividend-chart"></div>
+              <div class="sim-chart-wrap" id="dividend-chart" style="position: relative; height: 220px; width: 100%; margin-top: 16px;">
+                <canvas id="divCanvas"></canvas>
+              </div>
               <p class="sim-caption" id="dividend-caption"></p>
             </article>
             <article class="card simulator-card">
@@ -151,7 +153,9 @@
                 <div><span>예상 자산</span><strong id="sp-total">₩0</strong></div>
                 <div><span>총 납입금</span><strong id="sp-contribution">₩0</strong></div>
               </div>
-              <div class="sim-chart-wrap" id="sp-chart"></div>
+              <div class="sim-chart-wrap" id="sp-chart" style="position: relative; height: 220px; width: 100%; margin-top: 16px;">
+                <canvas id="spCanvas"></canvas>
+              </div>
               <p class="sim-caption" id="sp-caption"></p>
             </article>
           </div>
