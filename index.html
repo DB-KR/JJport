@@ -22,6 +22,7 @@
           <a class="nav-link active" href="#overview"><span>❖</span>개요</a>
           <a class="nav-link" href="#briefing"><span>📰</span>뉴스 브리핑</a>
           <a class="nav-link" href="#holdings"><span>目</span>보유 자산</a>
+          <a class="nav-link" href="#transactions"><span>📜</span>거래 이력</a>
           <a class="nav-link" href="#simulators"><span>🧮</span>시뮬레이터</a>
         </nav>
         <div class="sidebar-footer">
@@ -80,7 +81,7 @@
             </div>
           </article>
 
-          <!-- 자산 배분 (Chart.js 도넛 차트 적용) -->
+          <!-- 자산 배분 (Chart.js 도넛 차트) -->
           <article class="card allocation-card" id="allocation">
             <p class="card-label">자산 배분</p>
             <div class="donut-wrap" style="position: relative; width: 100%; min-height: 200px; display: flex; align-items: center; gap: 16px;">
@@ -110,22 +111,82 @@
           </div>
         </section>
 
-        <!-- 3. 보유 자산 -->
+        <!-- 3. 기간별 실현 손익 요약 카드 (신규!) -->
+        <section id="realized-returns" style="margin-top: 40px;">
+          <div class="section-heading">
+            <div><p class="eyebrow">PERFORMANCE REPORT</p><h2>기간별 실현 손익 분석 (매도 기록 기반)</h2></div>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+            <article class="card" style="padding: 16px;">
+              <p class="card-label">이번 달 손익 (KRW / USD)</p>
+              <h3 id="pnl-month" style="margin: 8px 0 0 0; font-size: 1.2rem; color: #f8fafc;">₩0 ($0.00)</h3>
+            </article>
+            <article class="card" style="padding: 16px;">
+              <p class="card-label">이번 분기 손익 (KRW / USD)</p>
+              <h3 id="pnl-quarter" style="margin: 8px 0 0 0; font-size: 1.2rem; color: #f8fafc;">₩0 ($0.00)</h3>
+            </article>
+            <article class="card" style="padding: 16px;">
+              <p class="card-label">올해 누적 손익 (KRW / USD)</p>
+              <h3 id="pnl-year" style="margin: 8px 0 0 0; font-size: 1.2rem; color: #f8fafc;">₩0 ($0.00)</h3>
+            </article>
+          </div>
+        </section>
+
+        <!-- 4. 보유 자산 요약 -->
         <section id="holdings" style="margin-top: 40px;">
-          <div class="section-heading"><div><p class="eyebrow">HOLDINGS</p><h2>보유 자산</h2></div><button class="primary-button" id="open-modal">＋ 자산 추가</button></div>
+          <div class="section-heading">
+            <div><p class="eyebrow">HOLDINGS</p><h2>현재 보유 자산</h2></div>
+            <button class="primary-button" id="open-tx-modal">＋ 매수/매도 기록하기</button>
+          </div>
           <div class="card table-card">
             <div class="table-scroll">
               <table>
-                <thead><tr><th>자산</th><th>보유 수량</th><th>평균 매입가</th><th>현재가</th><th>평가금액</th><th>수익률</th><th></th></tr></thead>
+                <thead>
+                  <tr>
+                    <th>자산명</th>
+                    <th>분류</th>
+                    <th>보유 수량</th>
+                    <th>평균 매입가</th>
+                    <th>현재가</th>
+                    <th>평가금액</th>
+                    <th>원화 손익 (%)</th>
+                    <th>달러 손익 (USD / %)</th>
+                  </tr>
+                </thead>
                 <tbody id="holdings-body"></tbody>
               </table>
             </div>
-            <div class="empty-state" id="empty-state"><span>◇</span><p>아직 보유 자산이 없습니다.</p><button class="text-button" id="empty-add">첫 자산 추가하기</button></div>
+            <div class="empty-state" id="empty-state"><span>◇</span><p>아직 등록된 거래 기록이 없습니다.</p></div>
           </div>
-          <p class="privacy-note">순위는 입력한 보유자산 기준의 추정치입니다. 부동산·부채를 포함한 실제 순자산을 입력해야 비교 정확도가 높아집니다. <a href="https://www.kostat.go.kr/board.es?act=view&bid=215&list_no=439535&mid=a10301010000" target="_blank" rel="noreferrer">2025 가계금융복지조사 기준</a></p>
         </section>
 
-        <!-- 4. 투자 시뮬레이터 -->
+        <!-- 5. 매수 / 매도 이력 기록 섹션 (신규!) -->
+        <section id="transactions" style="margin-top: 40px;">
+          <div class="section-heading">
+            <div><p class="eyebrow">TRANSACTION HISTORY</p><h2>매수 / 매도 이력</h2></div>
+          </div>
+          <div class="card table-card">
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>일자</th>
+                    <th>구분</th>
+                    <th>자산명</th>
+                    <th>통화</th>
+                    <th>수량</th>
+                    <th>단가</th>
+                    <th>총액</th>
+                    <th>작업</th>
+                  </tr>
+                </thead>
+                <tbody id="tx-history-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 6. 투자 시뮬레이터 -->
         <section id="simulators" style="margin-top: 40px;">
           <div class="section-heading simulator-heading">
             <div><p class="eyebrow">PLANNING LAB</p><h2>투자 시뮬레이터 & 리밸런싱</h2></div>
@@ -147,7 +208,6 @@
               <div class="sim-chart-wrap" id="dividend-chart" style="position: relative; height: 220px; width: 100%; margin-top: 16px;">
                 <canvas id="divCanvas"></canvas>
               </div>
-              <p class="sim-caption" id="dividend-caption"></p>
             </article>
 
             <article class="card simulator-card">
@@ -166,7 +226,6 @@
               <div class="sim-chart-wrap" id="sp-chart" style="position: relative; height: 220px; width: 100%; margin-top: 16px;">
                 <canvas id="spCanvas"></canvas>
               </div>
-              <p class="sim-caption" id="sp-caption"></p>
             </article>
 
             <!-- 포트폴리오 리밸런싱 계산기 카드 -->
@@ -179,41 +238,58 @@
                 <span class="sim-badge" style="background: rgba(129, 140, 248, 0.2); color: #818cf8; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem;">목표 비중 맞춤</span>
               </div>
 
-              <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 16px;">
-                현재 입력된 보유 자산을 기반으로, 목표하는 분류별 비중에 맞추기 위한 매수/매도 필요 금액을 계산합니다.
-              </p>
-
-              <div id="rebalance-inputs" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px;">
-                <!-- 자산 분류별 목표 비중 입력창이 JS로 자동 생성됩니다 -->
-              </div>
+              <div id="rebalance-inputs" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px;"></div>
 
               <div class="sim-results" style="margin-bottom: 16px;">
                 <div><span>목표 비중 합계</span><strong id="rebalance-total-ratio">0%</strong></div>
                 <div><span>추가 매수 필요 총액</span><strong id="rebalance-needed-sum">₩0</strong></div>
               </div>
 
-              <div id="rebalance-actions-list" style="background: rgba(255, 255, 255, 0.03); border-radius: 8px; padding: 12px; font-size: 0.85rem;">
-                <p style="color: #64748b; margin: 0;">자산을 등록하면 리밸런싱 가이드가 표시됩니다.</p>
-              </div>
+              <div id="rebalance-actions-list" style="background: rgba(255, 255, 255, 0.03); border-radius: 8px; padding: 12px; font-size: 0.85rem;"></div>
             </article>
           </div>
         </section>
       </main>
     </div>
 
-    <!-- 모달 창 -->
-    <dialog id="asset-modal">
-      <form id="asset-form" method="dialog">
-        <div class="modal-heading"><div><p class="eyebrow">NEW HOLDING</p><h2>자산 추가</h2></div><button class="close" type="button" id="close-modal" aria-label="닫기">×</button></div>
-        <div class="form-grid">
-          <label>자산명<input required name="name" placeholder="예: 삼성전자" /></label>
-          <label>티커 / 코드<input required name="symbol" placeholder="예: 005930" /></label>
-          <label>분류<select name="category"><option>국내주식</option><option>해외주식</option><option>ETF</option><option>채권</option><option>가상자산</option><option>현금</option></select></label>
-          <label>보유 수량<input required min="0" step="any" type="number" name="quantity" placeholder="0" /></label>
-          <label>평균 매입가 (원)<input required min="0" step="any" type="number" name="avgPrice" placeholder="0" /></label>
-          <label>현재가 (원)<input required min="0" step="any" type="number" name="currentPrice" placeholder="0" /></label>
+    <!-- 💡 매수 / 매도 거래 등록 모달 -->
+    <dialog id="tx-modal">
+      <form id="tx-form" method="dialog">
+        <div class="modal-heading">
+          <div><p class="eyebrow">NEW TRANSACTION</p><h2>매수 / 매도 기록하기</h2></div>
+          <button class="close" type="button" id="close-tx-modal" aria-label="닫기">×</button>
         </div>
-        <div class="form-actions"><button class="secondary-button" type="button" id="cancel-modal">취소</button><button class="primary-button" type="submit">저장하기</button></div>
+        <div class="form-grid">
+          <label>거래 일자<input required type="date" name="date" id="tx-date" /></label>
+          <label>구분
+            <select name="type">
+              <option value="BUY">매수 (BUY)</option>
+              <option value="SELL">매도 (SELL)</option>
+            </select>
+          </label>
+          <label>자산명<input required name="name" placeholder="예: AAPL, 삼성전자" /></label>
+          <label>분류
+            <select name="category">
+              <option value="해외주식">해외주식</option>
+              <option value="국내주식">국내주식</option>
+              <option value="ETF">ETF</option>
+              <option value="가상자산">가상자산</option>
+            </select>
+          </label>
+          <label>통화
+            <select name="currency" id="tx-currency">
+              <option value="USD">달러 (USD $)</option>
+              <option value="KRW">원화 (KRW ₩)</option>
+            </select>
+          </label>
+          <label>수량<input required min="0.0001" step="any" type="number" name="quantity" placeholder="0" /></label>
+          <label>거래 단가<input required min="0" step="any" type="number" name="price" placeholder="0" /></label>
+          <label>현재가 (시세)<input required min="0" step="any" type="number" name="currentPrice" placeholder="0" /></label>
+        </div>
+        <div class="form-actions">
+          <button class="secondary-button" type="button" id="cancel-tx-modal">취소</button>
+          <button class="primary-button" type="submit">기록 저장</button>
+        </div>
       </form>
     </dialog>
 
