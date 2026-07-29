@@ -131,7 +131,7 @@
     renderAllocation(total);
   }
 
-  // --- 2. 뉴스 브리핑 로직 (GitHub Actions 연동) ---
+  // --- 2. 뉴스 브리핑 로직 ---
   function showBriefing(briefing) {
     const loading = document.querySelector("#briefing-loading");
     const content = document.querySelector("#briefing-content");
@@ -177,7 +177,23 @@
   }
 
   // --- 3. 투자 시뮬레이터 로직 ---
-  const inputValue = id => Math.max(0, Number(document.getElementById(id)?.value) || 0);
+  // 입력 필드의 콤마(,)를 제거하고 순수 숫자만 추출하는 함수
+  const inputValue = id => {
+    const rawValue = document.getElementById(id)?.value.replace(/,/g, "") || "";
+    return Math.max(0, Number(rawValue) || 0);
+  };
+
+  // input 입력 시 실시간으로 3자리 콤마 포맷팅을 적용해 주는 함수
+  function applyFormattedInput(inputElem) {
+    if (!inputElem) return;
+    const rawVal = inputElem.value.replace(/[^0-9]/g, ""); // 숫자 이외 제거
+    if (!rawVal) {
+      inputElem.value = "";
+      return;
+    }
+    inputElem.value = Number(rawVal).toLocaleString("ko-KR");
+  }
+
   const shortCurrency = value => value >= 100000000 ? `₩${(value / 100000000).toFixed(value >= 1000000000 ? 1 : 2)}억` : won.format(value);
 
   function drawChart(target, values, label) {
@@ -316,7 +332,25 @@
       });
     }
 
-    // 시뮬레이터 이벤트 연결
+    // --- 금액/수량 입력 필드 실시간 3자리 콤마 바인딩 ---
+    const moneyInputIds = [
+      "dividend-initial", "dividend-monthly",
+      "sp-initial", "sp-monthly", "sp-exchange-rate"
+    ];
+
+    moneyInputIds.forEach(id => {
+      const elem = document.getElementById(id);
+      if (elem) {
+        // 초기값 포맷팅
+        applyFormattedInput(elem);
+        // 타이핑 시 실시간 콤마 적용
+        elem.addEventListener("input", e => {
+          applyFormattedInput(e.target);
+        });
+      }
+    });
+
+    // 시뮬레이터 재계산 이벤트 연결
     ["dividend-initial", "dividend-monthly", "dividend-yield", "dividend-years", "dividend-reinvest"].forEach(id => {
       document.getElementById(id)?.addEventListener("input", renderDividend);
     });
