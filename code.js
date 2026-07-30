@@ -52,7 +52,7 @@
       document.getElementById("modal-eyebrow").textContent = "NEW RECORD";
       document.getElementById("modal-title").textContent = "자산 / 대출 기록하기";
       document.getElementById("save-btn").textContent = "기록 저장";
-      toggleFields(categorySelect.value === "대출");
+      toggleFields(categorySelect.value.includes("대출"));
       if (dateInput) dateInput.value = new Date().toISOString().substring(0, 10);
       modal.showModal();
     };
@@ -62,22 +62,20 @@
   if (cancelBtn) cancelBtn.onclick = () => modal.close();
 
   function toggleFields(isLoan) {
-    function toggleFields(isLoan) {
-      const assetFields = document.querySelectorAll(".asset-field");
-      const loanFields = document.querySelectorAll(".loan-field");
-      const typeLabel = document.getElementById("type-label");
-      
-      assetFields.forEach(f => f.style.display = isLoan ? "none" : "flex");
-      loanFields.forEach(f => f.style.display = isLoan ? "flex" : "none");
-      if (typeLabel) typeLabel.style.display = isLoan ? "none" : "flex";
-}
+    const assetFields = document.querySelectorAll(".asset-field");
+    const loanFields = document.querySelectorAll(".loan-field");
+    const typeLabel = document.getElementById("type-label");
 
-if (categorySelect) {
-  categorySelect.addEventListener("change", (e) => {
-    // e.target.value에 '대출'이 포함되어 있으면 대출 필드로 전환
-    toggleFields(e.target.value.includes("대출"));
-  });
-}
+    assetFields.forEach(f => f.style.display = isLoan ? "none" : "flex");
+    loanFields.forEach(f => f.style.display = isLoan ? "flex" : "none");
+    if (typeLabel) typeLabel.style.display = isLoan ? "none" : "flex";
+  }
+
+  if (categorySelect) {
+    categorySelect.addEventListener("change", (e) => {
+      toggleFields(e.target.value.includes("대출"));
+    });
+  }
 
   // 저장 (신규 등록 및 수정 분기)
   if (form) {
@@ -86,12 +84,12 @@ if (categorySelect) {
       const formData = new FormData(form);
       const editId = document.getElementById("edit-tx-id").value;
       const category = formData.get("category");
-      const isLoan = category === "대출";
+      const isLoan = category.includes("대출") || category === "대출";
 
       let txData = {
         id: editId ? parseInt(editId) : Date.now(),
         date: formData.get("date"),
-        category: category,
+        category: isLoan ? "대출" : category,
         name: formData.get("name").trim(),
         currency: formData.get("currency")
       };
@@ -144,7 +142,7 @@ if (categorySelect) {
     document.getElementById("save-btn").textContent = "수정 완료";
 
     document.getElementById("tx-date").value = tx.date;
-    document.getElementById("tx-category").value = tx.category;
+    document.getElementById("tx-category").value = tx.category === "대출" ? "대출" : tx.category;
     document.getElementById("tx-name").value = tx.name;
     document.getElementById("tx-currency").value = tx.currency;
 
@@ -334,7 +332,6 @@ if (categorySelect) {
   }
 
   function initSimulators() {
-    // 콤마 자동 포맷팅
     const formatInputs = ["dividend-initial", "dividend-monthly", "sp-initial", "sp-monthly", "sp-exchange-rate", "target-amount"];
     formatInputs.forEach(id => {
       const el = document.getElementById(id);
@@ -362,7 +359,6 @@ if (categorySelect) {
     updateSpSim();
   }
 
-  // 배당 시뮬레이터 연산 및 차트
   function updateDividendSim() {
     const init = parseVal("dividend-initial");
     const monthly = parseVal("dividend-monthly");
@@ -396,7 +392,6 @@ if (categorySelect) {
     renderSimChart("divCanvas", divChartInstance, labels, totalData, "#55dfb2", (inst) => divChartInstance = inst);
   }
 
-  // S&P500 시뮬레이터 연산 및 차트
   function updateSpSim() {
     const initUsd = parseVal("sp-initial");
     const monthlyUsd = parseVal("sp-monthly");
@@ -427,7 +422,6 @@ if (categorySelect) {
     renderSimChart("spCanvas", spChartInstance, labels, totalData, "#818cf8", (inst) => spChartInstance = inst);
   }
 
-  // 시뮬레이터 라인 차트 공통 함수
   function renderSimChart(canvasId, instance, labels, data, color, setInst) {
     const canvas = document.getElementById(canvasId);
     if (!canvas || typeof Chart === "undefined") return;
@@ -697,6 +691,6 @@ if (categorySelect) {
   window.addEventListener("load", async () => {
     await fetchLiveRate();
     renderAll();
-    initSimulators(); // 💡 시뮬레이터 연산 및 차트 렌더링 시작
+    initSimulators();
   });
 })();
