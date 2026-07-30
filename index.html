@@ -135,8 +135,8 @@
         <!-- 4. 보유 자산 요약 -->
         <section id="holdings" style="margin-top: 40px;">
           <div class="section-heading">
-            <div><p class="eyebrow">HOLDINGS</p><h2>현재 보유 자산 및 예/적금/대출 현황</h2></div>
-            <button class="primary-button" id="open-tx-modal">＋ 자산/대출/예적금 기록하기</button>
+            <div><p class="eyebrow">HOLDINGS</p><h2>현재 보유 자산 및 대출/예적금 잔액</h2></div>
+            <button class="primary-button" id="open-tx-modal">＋ 매수/예적금/대출 기록하기</button>
           </div>
           <div class="card table-card">
             <div class="table-scroll">
@@ -145,11 +145,11 @@
                   <tr>
                     <th>자산/상품명</th>
                     <th>분류</th>
-                    <th>수량/만기일</th>
-                    <th>평균 취득가/납립금</th>
-                    <th>현재가/금액</th>
-                    <th>평가금액/만기수령액</th>
-                    <th>손익(%) / 세후이자</th>
+                    <th>수량/회차/만기</th>
+                    <th>평균 취득가 / 약정액</th>
+                    <th>현재가 / 원금 잔액</th>
+                    <th>평가금액 / 예상 수령액</th>
+                    <th>손익 / 이자수익(월상환액)</th>
                     <th>관리</th>
                   </tr>
                 </thead>
@@ -160,10 +160,10 @@
           </div>
         </section>
 
-        <!-- 5. 매수 / 매도 / 대출 / 예적금 이력 기록 섹션 -->
+        <!-- 5. 거래 및 금융 상품 이력 기록 섹션 -->
         <section id="transactions" style="margin-top: 40px;">
           <div class="section-heading">
-            <div><p class="eyebrow">TRANSACTION HISTORY</p><h2>거래 및 수령 이력</h2></div>
+            <div><p class="eyebrow">TRANSACTION HISTORY</p><h2>거래 및 금융 상품 이력</h2></div>
           </div>
           <div class="card table-card">
             <div class="table-scroll">
@@ -172,11 +172,11 @@
                   <tr>
                     <th>일자</th>
                     <th>구분</th>
-                    <th>자산명</th>
+                    <th>자산/상품명</th>
                     <th>통화</th>
-                    <th>수량/개월</th>
-                    <th>단가/금액</th>
-                    <th>총액</th>
+                    <th>수량/기간</th>
+                    <th>단가/월납입금</th>
+                    <th>총액/원금</th>
                     <th>작업</th>
                   </tr>
                 </thead>
@@ -252,18 +252,33 @@
       </main>
     </div>
 
-    <!-- 💡 자산 / 대출 / 예적금 등록 통합 모달 -->
+    <!-- 💡 등록 / 수정 통합 모달 -->
     <dialog id="tx-modal">
       <form id="tx-form" method="dialog">
         <input type="hidden" id="edit-tx-id" value="" />
         <div class="modal-heading">
-          <div><p class="eyebrow" id="modal-eyebrow">NEW RECORD</p><h2 id="modal-title">자산 / 대출 / 예적금 기록하기</h2></div>
+          <div><p class="eyebrow" id="modal-eyebrow">NEW RECORD</p><h2 id="modal-title">자산 / 예적금 / 대출 기록하기</h2></div>
           <button class="close" type="button" id="close-tx-modal" aria-label="닫기">×</button>
         </div>
         <div class="form-grid">
           <label style="display: flex; flex-direction: column; gap: 6px; color: #94a3b8; font-size: 0.85rem;">
-            가입일 / 거래일
-            <input required type="date" name="date" id="tx-date" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; padding: 8px 12px; color: #fff; font-size: 0.9rem; color-scheme: dark; cursor: pointer;" />
+            개시일 / 가입일
+            <input 
+              required 
+              type="date" 
+              name="date" 
+              id="tx-date" 
+              style="
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 6px;
+                padding: 8px 12px;
+                color: #fff;
+                font-size: 0.9rem;
+                color-scheme: dark;
+                cursor: pointer;
+              "
+            />
           </label>
 
           <label>분류
@@ -271,8 +286,8 @@
               <option value="해외주식">해외주식</option>
               <option value="국내주식">국내주식</option>
               <option value="ETF">ETF</option>
-              <option value="예금">정기예금</option>
-              <option value="적금">정기적금</option>
+              <option value="예금">예금</option>
+              <option value="적금">적금</option>
               <option value="부동산">부동산</option>
               <option value="가상자산">가상자산</option>
               <option value="채권">채권</option>
@@ -288,7 +303,7 @@
             </select>
           </label>
 
-          <label>항목명 / 상품명<input required id="tx-name" name="name" placeholder="예: AAPL, 청년도약적금, 정기예금" /></label>
+          <label>항목명 / 상품명<input required id="tx-name" name="name" placeholder="예: AAPL, 청년희망적금, 주담대" /></label>
           
           <label>통화
             <select name="currency" id="tx-currency">
@@ -297,24 +312,17 @@
             </select>
           </label>
 
-          <!-- 일반 자산 필드 -->
+          <!-- 일반 자산 입력 필드 -->
           <label class="asset-field">수량<input id="tx-qty" min="0.0001" step="any" type="number" name="quantity" placeholder="1" value="1" /></label>
           <label class="asset-field">거래 단가 / 매입가<input id="tx-price" min="0" step="any" type="number" name="price" placeholder="0" /></label>
           <label class="asset-field">현재가 (시세)<input id="tx-curr-price" min="0" step="any" type="number" name="currentPrice" placeholder="0" /></label>
 
-          <!-- 💡 예금/적금 전용 입력 필드 -->
-          <label class="savings-field" style="display: none;">예치금 / 월 적립액 (원)<input id="tx-deposit-amount" type="number" name="depositAmount" placeholder="예: 예금 10000000 / 적금 500000" /></label>
-          <label class="savings-field" style="display: none;">약정 이자율 (연 %)<input id="tx-savings-rate" type="number" step="0.01" name="savingsRate" placeholder="예: 3.5" /></label>
-          <label class="savings-field" style="display: none;">예치 / 적립 기간 (개월)<input id="tx-savings-months" type="number" name="savingsMonths" placeholder="예: 12" /></label>
-          <label class="savings-field" style="display: none;">과세 구분
-            <select name="taxType" id="tx-tax-type">
-              <option value="15.4">일반과세 (15.4%)</option>
-              <option value="9.5">세금우대 (9.5%)</option>
-              <option value="0">비과세 (0%)</option>
-            </select>
-          </label>
+          <!-- 예금 / 적금 전용 필드 -->
+          <label class="savings-field" style="display: none;">예치금 / 월 적립액 (원)<input id="tx-savings-amount" type="number" name="savingsAmount" placeholder="예: 예금 10,000,000 / 적금 500,000" /></label>
+          <label class="savings-field" style="display: none;">연 이자율 (%)<input id="tx-savings-rate" type="number" step="0.01" name="savingsRate" placeholder="예: 3.5" /></label>
+          <label class="savings-field" style="display: none;">가입 기간 (개월)<input id="tx-savings-term" type="number" name="savingsTerm" placeholder="예: 12" /></label>
 
-          <!-- 대출 전용 원리금 상환 필드 -->
+          <!-- 대출 전용 원리금 상환 입력 필드 -->
           <label class="loan-field" style="display: none;">대출 원금 (원)<input id="tx-loan-amount" type="number" name="loanAmount" placeholder="예: 300000000" /></label>
           <label class="loan-field" style="display: none;">연 이자율 (%)<input id="tx-loan-rate" type="number" step="0.01" name="interestRate" placeholder="예: 4.2" /></label>
           <label class="loan-field" style="display: none;">상환 기간 (개월)<input id="tx-loan-term" type="number" name="loanTermMonths" placeholder="예: 360 (30년)" /></label>
