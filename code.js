@@ -1,5 +1,5 @@
 // =========================================================
-// 🚀 대시보드 통합 관리 & 보유자산 수정/삭제 엔진 (code.js)
+// 🚀 대시보드 통합 관리 & 엔진 (code.js)
 // =========================================================
 
 (function initDashboardApp() {
@@ -324,7 +324,7 @@
     if (yieldEl) yieldEl.textContent = `${portfolioYield.toFixed(2)}%`;
   }
 
-  // 6️⃣ 시뮬레이터 로직 (배당 & S&P500)
+  // 6️⃣ 시뮬레이터 로직
   function parseVal(id) {
     const el = document.getElementById(id);
     if (!el) return 0;
@@ -593,7 +593,7 @@
 
   // 9️⃣ 전체 렌더링
   function renderAll() {
-    const { holdingsMap, realizedPnl } = processPortfolio();
+    const { holdingsMap } = processPortfolio();
     const activeHoldings = Object.values(holdingsMap).filter(h => h.qty > 0 && h.currentPrice >= 0);
 
     updateHeroOverview(activeHoldings);
