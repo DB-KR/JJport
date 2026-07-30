@@ -1,5 +1,5 @@
 // =========================================================
-// 🚀 대시보드 통합 관리 & 보유자산 수정/삭제 엔진 (code.js)
+// 🚀 대시보드 통합 관리 & 페이지네이션 & 뉴스 엔진 (code.js)
 // =========================================================
 
 (function initDashboardApp() {
@@ -9,7 +9,7 @@
   let divChartInstance = null;
   let spChartInstance = null;
 
-  // 💡 거래 이력 페이지네이션 상태 변수
+  // 💡 거래 이력 페이지네이션 변수
   let currentTxPage = 1;
   const txPerPage = 5;
 
@@ -119,7 +119,7 @@
         if (idx !== -1) transactions[idx] = txData;
       } else {
         transactions.push(txData);
-        currentTxPage = 1; // 신규 추가 시 1페이지로 이동
+        currentTxPage = 1;
       }
 
       saveAndRender();
@@ -329,7 +329,7 @@
     if (yieldEl) yieldEl.textContent = `${portfolioYield.toFixed(2)}%`;
   }
 
-  // 6️⃣ 시뮬레이터 로직
+  // 6️⃣ 시뮬레이터 연산
   function parseVal(id) {
     const el = document.getElementById(id);
     if (!el) return 0;
@@ -509,7 +509,7 @@
     }
     if (detailEl) {
       const rate = totalCostKrw > 0 ? (totalUnrealizedProfitKrw / totalCostKrw) * 100 : 0;
-      detailEl.textContent = `총 수익률: ${rate.toFixed(2)}%`;
+      detailEl.textContent = `(${rate.toFixed(2)}%)`;
     }
 
     const targetInput = document.getElementById("target-amount");
@@ -596,7 +596,7 @@
     });
   }
 
-  // 💡 9️⃣ 거래 이력 테이블 및 페이지네이션 렌더링
+  // 9️⃣ 거래 이력 테이블 (5개씩 페이지네이션)
   function renderTransactionsTable() {
     const txBody = document.getElementById("tx-history-body");
     const paginationEl = document.getElementById("tx-pagination");
@@ -608,11 +608,9 @@
       return;
     }
 
-    // 최신순 정렬
     const sortedTxs = [...transactions].reverse();
     const totalPages = Math.ceil(sortedTxs.length / txPerPage);
 
-    // 페이지 유효성 확인
     if (currentTxPage < 1) currentTxPage = 1;
     if (currentTxPage > totalPages) currentTxPage = totalPages;
 
@@ -639,7 +637,6 @@
       `;
     }).join("");
 
-    // 페이지네이션 UI 그려주기
     if (paginationEl) {
       if (totalPages <= 1) {
         paginationEl.innerHTML = "";
@@ -663,7 +660,6 @@
 
       paginationEl.innerHTML = btnHtml;
 
-      // 이벤트 리스너 바인딩
       const prevBtn = document.getElementById("tx-prev-btn");
       const nextBtn = document.getElementById("tx-next-btn");
 
@@ -679,7 +675,62 @@
     }
   }
 
-  // 🔟 전체 렌더링
+  // 🔟 뉴스 연동 모듈 (최대 5개 제한 & AI 요약 준비)
+  function initNewsModule() {
+    const newsListEl = document.getElementById("news-list");
+    const refreshBtn = document.getElementById("refresh-news-btn");
+
+    async function fetchNews() {
+      if (!newsListEl) return;
+
+      newsListEl.innerHTML = `
+        <li style="color: #64748b; font-size: 0.85rem; text-align: center; padding: 20px 0;">
+          최신 뉴스를 불러오는 중입니다...
+        </li>`;
+
+      try {
+        // 💡 추후 연동할 실제 뉴스 API 호출 (Naver/Google/RSS API 등)
+        // const res = await fetch("YOUR_NEWS_API_ENDPOINT");
+        // const newsData = await res.json();
+        
+        const newsData = []; // API 연결 전 빈 배열
+
+        if (!newsData || newsData.length === 0) {
+          newsListEl.innerHTML = `
+            <li style="color: #64748b; font-size: 0.85rem; text-align: center; padding: 25px 0;">
+              연동된 뉴스 API가 없거나 수신된 기사가 없습니다.
+            </li>`;
+          return;
+        }
+
+        // 💡 상위 최대 5개 기사만 잘라서 표시
+        const top5News = newsData.slice(0, 5);
+
+        newsListEl.innerHTML = top5News.map(item => `
+          <li style="padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+            <a href="${item.url}" target="_blank" rel="noopener noreferrer" style="color: #f8fafc; text-decoration: none; font-size: 0.88rem; font-weight: 500; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              ${item.title}
+            </a>
+            <span style="font-size: 0.75rem; color: #64748b; margin-top: 2px; display: block;">
+              ${item.source || '금융뉴스'} · ${item.date || ''}
+            </span>
+          </li>
+        `).join("");
+
+      } catch (err) {
+        console.error("뉴스 로드 오류:", err);
+        newsListEl.innerHTML = `
+          <li style="color: #ef4444; font-size: 0.85rem; text-align: center; padding: 20px 0;">
+            뉴스를 불러오는 중 오류가 발생했습니다.
+          </li>`;
+      }
+    }
+
+    if (refreshBtn) refreshBtn.addEventListener("click", fetchNews);
+    fetchNews();
+  }
+
+  // 11️⃣ 전체 렌더링
   function renderAll() {
     const { holdingsMap } = processPortfolio();
     const activeHoldings = Object.values(holdingsMap).filter(h => h.qty > 0 && h.currentPrice >= 0);
@@ -687,9 +738,9 @@
     updateHeroOverview(activeHoldings);
     renderAllocationChart(activeHoldings);
     calculatePassiveIncome(activeHoldings);
-    renderTransactionsTable(); // 💡 거래 이력 페이지네이션 테이블 렌더링
+    renderTransactionsTable();
 
-    // 보유 자산 / 대출 잔액 테이블
+    // 보유 자산 / 대출 테이블 렌더링
     const holdingsBody = document.getElementById("holdings-body");
     const emptyState = document.getElementById("empty-state");
 
@@ -748,10 +799,11 @@
     }
   }
 
-  // 초기화
+  // 앱 시작
   window.addEventListener("load", async () => {
     await fetchLiveRate();
     renderAll();
     initSimulators();
+    initNewsModule();
   });
 })();
