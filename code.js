@@ -1,8 +1,7 @@
 // =========================================================
-// 🚀 JJPort 부부 자산 관리 엔진 (code.js)
+// 🚀 JJPort 부부 자산 관리 통합 풀 엔진 (code.js)
 // =========================================================
 
-// 🔑 Supabase 정보 (본인 프로젝트 정보로 변경하세요)
 const SUPABASE_URL = "YOUR_SUPABASE_URL";
 const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
 
@@ -11,13 +10,14 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 (function initDashboardApp() {
   let transactions = [];
   let currentUser = null;
-  let liveUsdKrwRate = 1400; // 기본 환율
+  let liveUsdKrwRate = 1400; // 환율 기본값
+  let chartInstance = null;  // Chart.js 인스턴스 저장용
 
   const getEl = (id) => document.getElementById(id);
   const formatKrw = (val) => "₩" + Math.round(val).toLocaleString("ko-KR");
 
   // ---------------------------------------------------------
-  // 🔐 이메일 / 비밀번호 로그인 관리
+  // 🔐 이메일 / 비밀번호 로그인 로직
   // ---------------------------------------------------------
   async function checkUserSession() {
     const { data: { session } } = await supabase.auth.getSession();
@@ -54,7 +54,6 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
   }
 
-  // 로그인 버튼 이벤트
   getEl("login-btn")?.addEventListener("click", async () => {
     const email = getEl("login-email")?.value.trim();
     const password = getEl("login-password")?.value.trim();
@@ -64,13 +63,10 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       return;
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email,
-      password: password,
-    });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      alert("로그인 실패: 이메일이나 비밀번호가 맞지 않습니다.");
+      alert("로그인 실패: 이메일이나 비밀번호가 올바르지 않습니다.");
     } else {
       currentUser = data.user;
       updateAuthUI();
@@ -78,7 +74,6 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
   });
 
-  // 로그아웃 버튼 이벤트
   getEl("logout-btn")?.addEventListener("click", async () => {
     await supabase.auth.signOut();
     currentUser = null;
@@ -98,7 +93,7 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       .order("date", { ascending: true });
 
     if (error) {
-      console.error("DB 불러오기 실패:", error.message);
+      console.error("DB 불러오기 오류:", error.message);
       return;
     }
 
@@ -122,7 +117,7 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
 
   // ---------------------------------------------------------
-  // 📊 순자산 & 30대 상위 % 게이지 연산
+  // 📊 순자산 및 30대 상위 % 백분위 계산
   // ---------------------------------------------------------
   function calculate30sPercentile(netWorth) {
     if (netWorth <= 0) return 99.9;
@@ -153,21 +148,21 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     if (!hasAssets || netWorth <= 0) {
       if (rankPercentEl) rankPercentEl.textContent = "—";
       if (rankBarEl) rankBarEl.style.width = "0%";
-      if (rankCaptionEl) rankCaptionEl.textContent = "로그인 후 자산을 추가하면 비교해 드려요";
+      if (rankCaptionEl) rankCaptionEl.textContent = "로그인 후 자산을 추가하면 위치를 확인할 수 있습니다.";
       return;
     }
 
     const percentile = calculate30sPercentile(netWorth);
-    if (rankPercentEl) rankPercentEl.textContent = `${percentile.toFixed(1)}%`;
+    if (rankPercentEl) rankPercentEl.textContent = `상위 ${percentile.toFixed(1)}%`;
     
     const barWidth = Math.max(2, Math.min(100, 100 - percentile));
     if (rankBarEl) rankBarEl.style.width = `${barWidth}%`;
 
     if (rankCaptionEl) {
-      if (percentile <= 5) rankCaptionEl.textContent = "30대 최상위권 순자산입니다! 🎉";
-      else if (percentile <= 20) rankCaptionEl.textContent = "30대 평균을 훌쩍 넘어서는 자산입니다 🚀";
+      if (percentile <= 5) rankCaptionEl.textContent = "대한민국 30대 최상위권 자산입니다! 🎉";
+      else if (percentile <= 20) rankCaptionEl.textContent = "30대 평균을 한참 상회하는 뛰어난 자산 수준입니다 🚀";
       else if (percentile <= 50) rankCaptionEl.textContent = "30대 상위 절반에 속해 있습니다 👍";
-      else rankCaptionEl.textContent = "차근차근 자산을 늘려가는 중입니다 💪";
+      else rankCaptionEl.textContent = "차근차근 자산을 우상향 시키고 있습니다 💪";
     }
   }
 
@@ -239,7 +234,7 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
 
   window.deleteTransaction = async function(id) {
-    if (confirm("정말 이 내역을 삭제하시겠습니까?")) {
+    if (confirm("이 자산/대출 항목을 삭제하시겠습니까?")) {
       await supabase.from("transactions").delete().eq("id", id);
       await fetchTransactionsFromDB();
     }
@@ -274,7 +269,7 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   };
 
   // ---------------------------------------------------------
-  // ⚙️ 계산 엔진 및 화면 렌더링
+  // ⚙️ 대출 및 포트폴리오 집계 연산 Engine
   // ---------------------------------------------------------
   function calculateLoanStatus(startDateStr, principal, annualRatePercent, totalMonths) {
     if (!principal || principal <= 0) return { currentBalance: 0, monthlyPayment: 0, passedMonths: 0 };
@@ -317,6 +312,7 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       }
       const item = holdingsMap[itemKey];
       item.currentPrice = tx.currentPrice;
+      item.dividendRate = tx.dividendRate || 0;
 
       if (tx.type === "BUY") {
         const totalCost = (item.qty * item.avgPrice) + (tx.quantity * tx.price);
@@ -330,33 +326,100 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     return holdingsMap;
   }
 
+  // ---------------------------------------------------------
+  // 🎨 Chart.js 포트폴리오 비중 차트 그린
+  // ---------------------------------------------------------
+  function renderChart(categoryTotals) {
+    const ctx = getEl("portfolioChart")?.getContext("2d");
+    if (!ctx) return;
+
+    const labels = Object.keys(categoryTotals);
+    const dataValues = Object.values(categoryTotals);
+
+    if (chartInstance) {
+      chartInstance.destroy();
+    }
+
+    if (labels.length === 0) return;
+
+    chartInstance = new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        labels: labels,
+        datasets: [{
+          data: dataValues,
+          backgroundColor: ["#6366f1", "#10b981", "#f59e0b", "#ec4899", "#3b82f6", "#8b5cf6", "#14b8a6"],
+          borderWidth: 2,
+          borderColor: "#1e293b"
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: "bottom",
+            labels: { color: "#f8fafc", font: { size: 11 } }
+          }
+        }
+      }
+    });
+  }
+
+  // ---------------------------------------------------------
+  // 🖥️ 최종 통합 UI 렌더링
+  // ---------------------------------------------------------
   function renderAll() {
     const holdingsMap = processPortfolio();
     const activeHoldings = Object.values(holdingsMap).filter(h => h.qty > 0 && h.currentPrice >= 0);
 
-    let totalAssetKrw = 0, totalDebtKrw = 0, investedValueKrw = 0, cashValueKrw = 0;
+    let totalAssetKrw = 0, totalDebtKrw = 0, investedValueKrw = 0;
+    let annualDividendKrw = 0, totalMonthlyLoanPayment = 0;
+    const categoryTotals = {};
 
     activeHoldings.forEach(h => {
       const isUsd = h.currency === "USD";
       const valKrw = isUsd ? (h.qty * h.currentPrice) * liveUsdKrwRate : h.qty * h.currentPrice;
 
-      if (h.category === "대출") totalDebtKrw += valKrw;
-      else {
+      if (h.category === "대출") {
+        totalDebtKrw += valKrw;
+        if (h.loanInfo) {
+          totalMonthlyLoanPayment += h.loanInfo.monthlyPayment;
+        }
+      } else {
         totalAssetKrw += valKrw;
-        if (h.category === "현금") cashValueKrw += valKrw;
-        else investedValueKrw += valKrw;
+        investedValueKrw += valKrw;
+
+        // 차트용 카테고리별 집계
+        categoryTotals[h.category] = (categoryTotals[h.category] || 0) + valKrw;
+
+        // 배당금 집계
+        if (h.dividendRate > 0) {
+          annualDividendKrw += valKrw * (h.dividendRate / 100);
+        }
       }
     });
 
     const netWorthKrw = totalAssetKrw - totalDebtKrw;
+
+    // 요약 카드 업데이트
     if (getEl("net-worth")) getEl("net-worth").textContent = formatKrw(netWorthKrw);
     if (getEl("invested-value")) getEl("invested-value").textContent = formatKrw(investedValueKrw);
-    if (getEl("cash-value")) getEl("cash-value").textContent = formatKrw(cashValueKrw);
+    if (getEl("annual-dividend")) getEl("annual-dividend").textContent = formatKrw(annualDividendKrw);
+    if (getEl("monthly-loan")) getEl("monthly-loan").textContent = formatKrw(totalMonthlyLoanPayment);
 
+    // 상위 % 백분위 및 차트 업데이트
     updateRankMeter(netWorthKrw, activeHoldings.length > 0);
+    renderChart(categoryTotals);
 
+    // 보유 목록 테이블 렌더링
     const holdingsBody = getEl("holdings-body");
     if (holdingsBody) {
+      if (activeHoldings.length === 0) {
+        holdingsBody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:30px; color:#94a3b8;">등록된 자산이 없습니다. 오른쪽 위 [+ 자산/대출 추가] 버튼을 눌러보세요!</td></tr>`;
+        return;
+      }
+
       holdingsBody.innerHTML = activeHoldings.map(h => {
         const isLoan = h.category === "대출";
         const isUsd = h.currency === "USD";
@@ -365,17 +428,17 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         if (isLoan) {
           const info = h.loanInfo;
           return `
-            <tr style="background: rgba(239, 68, 68, 0.05); border-bottom: 1px solid #334155;">
-              <td style="padding: 10px;"><b>${h.name}</b></td>
-              <td style="padding: 10px;"><small style="color:#ef4444;">대출</small></td>
-              <td style="padding: 10px;">${info.passedMonths}/${info.totalMonths}회차</td>
-              <td style="padding: 10px;">${formatKrw(info.initialPrincipal)}</td>
-              <td style="padding: 10px;"><b style="color:#ef4444;">${formatKrw(h.currentPrice)}</b></td>
-              <td style="padding: 10px;"><b>-${formatKrw(totalKrw)}</b></td>
-              <td style="padding: 10px;">월: <b style="color:#ef4444;">${formatKrw(info.monthlyPayment)}</b></td>
-              <td style="padding: 10px;">
-                <button onclick="editTransaction(${h.id})" style="background:none; border:none; color:#818cf8; cursor:pointer; margin-right: 5px;">수정</button>
-                <button onclick="deleteTransaction(${h.id})" style="background:none; border:none; color:#ef4444; cursor:pointer;">삭제</button>
+            <tr style="background: rgba(239, 68, 68, 0.08); border-bottom: 1px solid #334155;">
+              <td style="padding: 12px;"><b>${h.name}</b></td>
+              <td style="padding: 12px;"><span style="color:#ef4444; font-weight:bold;">대출</span></td>
+              <td style="padding: 12px;">${info.passedMonths}/${info.totalMonths} 회차</td>
+              <td style="padding: 12px;">${formatKrw(info.initialPrincipal)}</td>
+              <td style="padding: 12px;"><b style="color:#ef4444;">${formatKrw(h.currentPrice)}</b></td>
+              <td style="padding: 12px;"><b style="color:#ef4444;">-${formatKrw(totalKrw)}</b></td>
+              <td style="padding: 12px;">월 <b style="color:#ef4444;">${formatKrw(info.monthlyPayment)}</b></td>
+              <td style="padding: 12px; text-align:center;">
+                <button onclick="editTransaction(${h.id})" style="background:none; border:none; color:#818cf8; cursor:pointer; font-weight:600; margin-right: 6px;">수정</button>
+                <button onclick="deleteTransaction(${h.id})" style="background:none; border:none; color:#ef4444; cursor:pointer; font-weight:600;">삭제</button>
               </td>
             </tr>`;
         }
@@ -386,16 +449,16 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         return `
           <tr style="border-bottom: 1px solid #334155;">
-            <td style="padding: 10px;"><b>${h.name}</b></td>
-            <td style="padding: 10px;"><small>${h.category}</small></td>
-            <td style="padding: 10px;">${h.qty.toLocaleString("ko-KR")}</td>
-            <td style="padding: 10px;">${isUsd ? '$' : '₩'}${h.avgPrice.toLocaleString("ko-KR")}</td>
-            <td style="padding: 10px;">${isUsd ? '$' : '₩'}${h.currentPrice.toLocaleString("ko-KR")}</td>
-            <td style="padding: 10px;"><b>${formatKrw(totalKrw)}</b></td>
-            <td style="padding: 10px; color:${profitKrw >= 0 ? '#10b981' : '#ef4444'}"><b>${profitRate.toFixed(2)}%</b></td>
-            <td style="padding: 10px;">
-              <button onclick="editTransaction(${h.id})" style="background:none; border:none; color:#818cf8; cursor:pointer; margin-right: 5px;">수정</button>
-              <button onclick="deleteTransaction(${h.id})" style="background:none; border:none; color:#ef4444; cursor:pointer;">삭제</button>
+            <td style="padding: 12px;"><b>${h.name}</b></td>
+            <td style="padding: 12px;"><span style="color:#818cf8;">${h.category}</span></td>
+            <td style="padding: 12px;">${h.qty.toLocaleString("ko-KR")}</td>
+            <td style="padding: 12px;">${isUsd ? '$' : '₩'}${h.avgPrice.toLocaleString("ko-KR")}</td>
+            <td style="padding: 12px;">${isUsd ? '$' : '₩'}${h.currentPrice.toLocaleString("ko-KR")}</td>
+            <td style="padding: 12px;"><b>${formatKrw(totalKrw)}</b></td>
+            <td style="padding: 12px; color:${profitKrw >= 0 ? '#10b981' : '#ef4444'}"><b>${profitRate >= 0 ? '+' : ''}${profitRate.toFixed(2)}%</b></td>
+            <td style="padding: 12px; text-align:center;">
+              <button onclick="editTransaction(${h.id})" style="background:none; border:none; color:#818cf8; cursor:pointer; font-weight:600; margin-right: 6px;">수정</button>
+              <button onclick="deleteTransaction(${h.id})" style="background:none; border:none; color:#ef4444; cursor:pointer; font-weight:600;">삭제</button>
             </td>
           </tr>`;
       }).join("");
