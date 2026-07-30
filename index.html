@@ -51,7 +51,7 @@
       <section class="hero-grid">
         <!-- 총 순자산 카드리스트 -->
         <div class="card total-card">
-          <div class="card-label">순자산 (Net Worth)</div>
+          <div class="card-label">총 순자산 (Net Worth)</div>
           <div class="value-row">
             <strong id="net-worth">₩0</strong>
             <span id="monthly-profit" class="trend neutral">+₩0</span>
@@ -85,7 +85,7 @@
           </div>
         </div>
 
-        <!-- 자산 배분 도넛 차트 카드 -->
+        <!-- 포트폴리오 자산 배분 도넛 차트 카드 -->
         <div class="card allocation-card">
           <div class="card-label">포트폴리오 자산 배분 (<span id="asset-count">0</span>개)</div>
           <div class="donut-wrap" style="display: flex; align-items: center; gap: 15px; margin-top: 10px;">
@@ -93,7 +93,7 @@
               <canvas id="allocationCanvas"></canvas>
             </div>
             <ul id="legend" class="legend" style="flex: 1; list-style: none; padding: 0; margin: 0; font-size: 0.85rem;">
-              <!-- code.js를 통해 카테고리 범례가 들어옵니다 -->
+              <!-- code.js를 통해 동적 레전드 표시 -->
             </ul>
           </div>
         </div>
@@ -111,42 +111,34 @@
         <p id="rank-caption" class="soft" style="margin: 0; font-size: 0.85rem; color: #94a3b8;">30대 평균을 홀짝 넘어서는 자산입니다 🚀</p>
       </section>
 
-      <!-- 🟢 보유 자산 및 대출 테이블 섹션 -->
-      <section id="holdings" style="margin-top: 30px;">
+      <!-- 🟢 복구 완료: 주요 금융 및 시장 뉴스 섹션 -->
+      <section id="news-section" style="margin-top: 30px;">
         <div class="section-heading" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-          <h2>보유 자산 및 대출 내역</h2>
-          <button id="open-tx-modal" class="primary-button">+ 자산/대출 추가</button>
+          <h2>📰 주요 금융 & 시장 뉴스</h2>
+          <span class="soft" style="font-size: 0.8rem; color: #94a3b8;">실시간 주요 이슈</span>
         </div>
-
-        <div class="card table-card">
-          <div class="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>자산/대출명</th>
-                  <th>분류</th>
-                  <th>수량 / 회차</th>
-                  <th>매수/원금</th>
-                  <th>현재가/잔액</th>
-                  <th>평가금액</th>
-                  <th>수익률 / 월상환</th>
-                  <th>관리</th>
-                </tr>
-              </thead>
-              <tbody id="holdings-body">
-                <!-- code.js를 통해 자산 항목 및 수정/삭제 버튼이 출력됩니다 -->
-              </tbody>
-            </table>
+        <div id="news-container" class="hero-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px;">
+          <!-- code.js의 News 로직 또는 기본 뉴스 항목이 표시됩니다 -->
+          <div class="card news-card">
+            <span class="badge" style="background: rgba(99,102,241,0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;">증시</span>
+            <h4 style="margin: 10px 0 6px 0; font-size: 0.95rem;"><a href="#" target="_blank" style="color: #f8fafc; text-decoration: none;">글로벌 증시 및 환율 변동성 관망세 지속</a></h4>
+            <p class="soft" style="font-size: 0.8rem; color: #94a3b8; margin: 0;">주요 국채 금리 및 환율 추이에 따른 자산 시장 영향 분석...</p>
           </div>
-          <div id="empty-state" class="empty-state" style="display: none; padding: 40px; text-align: center; color: #94a3b8;">
-            <span>📥</span>
-            <p>등록된 자산 및 대출 내역이 없습니다.</p>
+          <div class="card news-card">
+            <span class="badge" style="background: rgba(16,185,129,0.2); color: #34d399; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;">금리</span>
+            <h4 style="margin: 10px 0 6px 0; font-size: 0.95rem;"><a href="#" target="_blank" style="color: #f8fafc; text-decoration: none;">한국은행 기준금리 방향 및 부동산 대출 시장 동향</a></h4>
+            <p class="soft" style="font-size: 0.8rem; color: #94a3b8; margin: 0;">주담대 금리 변화와 주택 시장 자금 유입 영향 점검...</p>
+          </div>
+          <div class="card news-card">
+            <span class="badge" style="background: rgba(168,85,247,0.2); color: #c084fc; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;">기술주</span>
+            <h4 style="margin: 10px 0 6px 0; font-size: 0.95rem;"><a href="#" target="_blank" style="color: #f8fafc; text-decoration: none;">S&P 500 Big Tech 실적 발표 및 투자 전망</a></h4>
+            <p class="soft" style="font-size: 0.8rem; color: #94a3b8; margin: 0;">미국 주요 기술주 실적에 따른 적립식 투자 전략 가이드...</p>
           </div>
         </div>
       </section>
 
-      <!-- 🟢 S&P 500 및 배당 시뮬레이터 섹션 -->
-      <section id="simulator" style="margin-top: 35px; margin-bottom: 40px;">
+      <!-- 🟢 자산 성장 시뮬레이터 섹션 -->
+      <section id="simulator" style="margin-top: 35px; margin-bottom: 30px;">
         <div class="section-heading">
           <h2>📈 자산 성장 시뮬레이터</h2>
         </div>
@@ -212,7 +204,41 @@
         </div>
       </section>
 
-      <!-- 숨겨진 전체 거래 히스토리 (JS 필수 연결용) -->
+      <!-- 🟢 보유 자산 및 대출 테이블 섹션 -->
+      <section id="holdings" style="margin-top: 30px; margin-bottom: 40px;">
+        <div class="section-heading" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <h2>보유 자산 및 대출 내역</h2>
+          <button id="open-tx-modal" class="primary-button">+ 자산/대출 추가</button>
+        </div>
+
+        <div class="card table-card">
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>자산/대출명</th>
+                  <th>분류</th>
+                  <th>수량 / 회차</th>
+                  <th>매수/원금</th>
+                  <th>현재가/잔액</th>
+                  <th>평가금액</th>
+                  <th>수익률 / 월상환</th>
+                  <th>관리</th>
+                </tr>
+              </thead>
+              <tbody id="holdings-body">
+                <!-- code.js를 통해 자산 항목이 들어옵니다 -->
+              </tbody>
+            </table>
+          </div>
+          <div id="empty-state" class="empty-state" style="display: none; padding: 40px; text-align: center; color: #94a3b8;">
+            <span>📥</span>
+            <p>등록된 자산 및 대출 내역이 없습니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 히스토리 숨김 영역 (JS 연동) -->
       <table style="display: none;">
         <tbody id="tx-history-body"></tbody>
       </table>
@@ -261,7 +287,7 @@
           </select>
         </label>
 
-        <!-- 자산 전용 필드 -->
+        <!-- 자산 필드 -->
         <label class="asset-field" id="type-label">매수/매도 구분
           <select id="tx-type" name="type">
             <option value="BUY">매수 (BUY)</option>
@@ -285,7 +311,7 @@
           <input type="number" step="any" id="tx-div-rate" name="dividendRate" value="0">
         </label>
 
-        <!-- 대출 전용 필드 -->
+        <!-- 대출 필드 -->
         <label class="loan-field" style="display: none;">대출 원금
           <input type="number" step="any" id="tx-loan-amount" name="loanAmount" value="0">
         </label>
