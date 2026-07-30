@@ -101,122 +101,42 @@ dialog form{padding:26px}
 .form-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:27px}
 .secondary-button{color:#d9d9e3;background:transparent;border-color:#3c435d}
 
-/* ==========================================
-   뉴스 브리핑 2x1 레이아웃 & AI 분석 영역
-   ========================================== */
-
-/* 뉴스 영역 전체 폰트 및 기본 설정 */
-#briefing, #briefing *, .briefing-card {
-  font-family: 'Noto Sans KR', 'Manrope', -apple-system, sans-serif !important;
+/* =========================================================
+   🔧 뉴스 바로가기 카드 & 모달 레이아웃 보완
+   ========================================================= */
+.news-link-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  text-decoration: none;
+  transition: all 0.2s ease;
 }
 
-/* 1. 상단 브리핑 컨테이너를 2열(2x1) 그리드로 변경 */
-#briefing .briefing-card {
-  background: transparent !important;
-  border: none !important;
-  padding: 0 !important;
+.news-link-card:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(129, 140, 248, 0.4) !important;
+  transform: translateY(-2px);
 }
 
-#briefing-content {
-  display: grid !important;
-  grid-template-columns: 1fr 1fr !important; /* 왼쪽: 뉴스 목록 / 오른쪽: AI 분석 */
-  gap: 20px !important;
-}
-
-@media (max-width: 900px) {
-  #briefing-content {
-    grid-template-columns: 1fr !important; /* 모바일에서는 1열로 세로 배치 */
-  }
-}
-
-/* 2. 상단 총평(marketTone / summary)을 오른쪽 AI 영역으로 이동할 수 있도록 스타일링 */
-.briefing-top {
-  grid-column: 2 !important; /* 오른쪽 카드 배치 */
-  grid-row: 1 !important;
-  background: #151c33 !important;
-  border: 1px solid #28304d !important;
-  border-radius: 16px !important;
-  padding: 24px !important;
+.form-grid label,
+.form-grid .form-field {
   display: flex !important;
   flex-direction: column !important;
-  gap: 12px !important;
-}
-
-.briefing-top::before {
-  content: "🤖 AI 시장 종합 분석 (예정)" !important;
+  gap: 6px !important;
   font-size: 0.85rem !important;
-  font-weight: 700 !important;
-  color: #978cff !important;
-  letter-spacing: -0.01em !important;
-}
-
-.briefing-summary {
-  color: #cbd5e1 !important;
-  font-size: 0.95rem !important;
-  line-height: 1.6 !important;
-  margin: 0 !important;
-}
-
-/* 3. 왼쪽 뉴스 목록 (칸칸이 나눠진 카드 형태) */
-.briefing-list {
-  grid-column: 1 !important; /* 왼쪽 배치 */
-  grid-row: 1 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 14px !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  list-style: none !important;
-}
-
-/* 뉴스 각각의 독립된 카드 박스 */
-.briefing-list li {
-  background: #151c33 !important;
-  border: 1px solid #28304d !important;
-  border-radius: 14px !important;
-  padding: 18px 20px !important;
-  transition: transform 0.2s ease, border-color 0.2s ease !important;
-}
-
-.briefing-list li:hover {
-  border-color: #4f528d !important;
-  transform: translateY(-2px) !important;
-}
-
-/* 뉴스 제목 (파란색 제거, 텍스트 스타일 적용) */
-.briefing-list li a {
-  display: block !important;
-  color: #ffffff !important;
-  font-size: 1.02rem !important;
-  font-weight: 600 !important;
-  line-height: 1.45 !important;
-  text-decoration: none !important;
-  margin-bottom: 8px !important;
-  transition: color 0.2s ease !important;
-}
-
-.briefing-list li a:hover {
-  color: #978cff !important;
-}
-
-/* 뉴스 요약 본문 */
-.briefing-list li p {
   color: #94a3b8 !important;
-  font-size: 0.9rem !important;
-  line-height: 1.55 !important;
-  margin: 0 0 10px 0 !important;
 }
 
-/* 언론사 출처 */
-.briefing-source {
-  display: inline-block !important;
-  font-family: 'DM Mono', monospace !important;
-  color: #64748b !important;
-  font-size: 0.78rem !important;
-  background: rgba(255, 255, 255, 0.05) !important;
-  padding: 3px 8px !important;
-  border-radius: 6px !important;
+.form-grid label span,
+#type-label {
+  white-space: nowrap !important;
+  word-break: keep-all !important;
 }
+
 /* ==========================================
    목표 자산 달성률 (Goal Tracker) 스타일
    ========================================== */
