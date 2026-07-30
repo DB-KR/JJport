@@ -3,25 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JJPort - 개인 자산 관리 대시보드</title>
+  <title>JJPort - 자산 관리 대시보드</title>
   
-  <!-- CSS 스타일시트 연결 -->
+  <!-- CSS 링크 경로를 style.css로 맞춰 404 에러를 방지합니다 -->
   <link rel="stylesheet" href="style.css">
   
-  <!-- External Libraries (Chart.js & Supabase SDK) -->
+  <!-- External Libraries -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <div class="shell">
-    <!-- 🟢 사이드바 영역 -->
+    <!-- 사이드바 -->
     <aside class="sidebar">
       <a href="#" class="brand">
         <div class="brand-mark">💰</div>
         <span>JJPort</span>
       </a>
       <nav>
-        <a href="#" class="nav-link active"><span>📊</span> 대시보드</a>
+        <a href="#overview" class="nav-link active"><span>📊</span> 대시보드</a>
         <a href="#simulator" class="nav-link"><span>📈</span> 시뮬레이터</a>
         <a href="#holdings" class="nav-link"><span>💼</span> 보유 자산</a>
       </nav>
@@ -32,9 +32,8 @@
       </div>
     </aside>
 
-    <!-- 🟢 메인 콘텐츠 영역 -->
-    <main>
-      <!-- 상단 탑바 (헤더) -->
+    <!-- 메인 콘텐츠 -->
+    <main id="overview">
       <header class="topbar">
         <div>
           <p class="eyebrow">PERSONAL FINANCE MANAGEMENT</p>
@@ -47,9 +46,8 @@
         </div>
       </header>
 
-      <!-- 🟢 주요 요약 카드 및 자산 배분 차트 (히어로 그리드) -->
+      <!-- 요약 카드리스트 -->
       <section class="hero-grid">
-        <!-- 총 순자산 카드리스트 -->
         <div class="card total-card">
           <div class="card-label">총 순자산 (Net Worth)</div>
           <div class="value-row">
@@ -63,7 +61,6 @@
           </div>
         </div>
 
-        <!-- 목표 자산 달성률 카드 -->
         <div class="card goal-card">
           <div class="goal-header">
             <div class="card-label" style="margin: 0;">목표 자산 달성률</div>
@@ -85,7 +82,6 @@
           </div>
         </div>
 
-        <!-- 포트폴리오 자산 배분 도넛 차트 카드 -->
         <div class="card allocation-card">
           <div class="card-label">포트폴리오 자산 배분 (<span id="asset-count">0</span>개)</div>
           <div class="donut-wrap" style="display: flex; align-items: center; gap: 15px; margin-top: 10px;">
@@ -93,13 +89,12 @@
               <canvas id="allocationCanvas"></canvas>
             </div>
             <ul id="legend" class="legend" style="flex: 1; list-style: none; padding: 0; margin: 0; font-size: 0.85rem;">
-              <!-- code.js를 통해 동적 레전드 표시 -->
             </ul>
           </div>
         </div>
       </section>
 
-      <!-- 🟢 30대 자산 상위 % 백분율 게이지 바 -->
+      <!-- 백분위 게이지 바 -->
       <section class="card" style="margin-top: 20px; padding: 20px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <h3 style="margin: 0; font-size: 1rem;">30대 순자산 상위 백분위 (가계금융복지조사)</h3>
@@ -111,14 +106,13 @@
         <p id="rank-caption" class="soft" style="margin: 0; font-size: 0.85rem; color: #94a3b8;">30대 평균을 홀짝 넘어서는 자산입니다 🚀</p>
       </section>
 
-      <!-- 🟢 복구 완료: 주요 금융 및 시장 뉴스 섹션 -->
+      <!-- 뉴스 섹션 -->
       <section id="news-section" style="margin-top: 30px;">
         <div class="section-heading" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
           <h2>📰 주요 금융 & 시장 뉴스</h2>
           <span class="soft" style="font-size: 0.8rem; color: #94a3b8;">실시간 주요 이슈</span>
         </div>
         <div id="news-container" class="hero-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px;">
-          <!-- code.js의 News 로직 또는 기본 뉴스 항목이 표시됩니다 -->
           <div class="card news-card">
             <span class="badge" style="background: rgba(99,102,241,0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;">증시</span>
             <h4 style="margin: 10px 0 6px 0; font-size: 0.95rem;"><a href="#" target="_blank" style="color: #f8fafc; text-decoration: none;">글로벌 증시 및 환율 변동성 관망세 지속</a></h4>
@@ -137,7 +131,7 @@
         </div>
       </section>
 
-      <!-- 🟢 자산 성장 시뮬레이터 섹션 -->
+      <!-- 자산 성장 시뮬레이터 -->
       <section id="simulator" style="margin-top: 35px; margin-bottom: 30px;">
         <div class="section-heading">
           <h2>📈 자산 성장 시뮬레이터</h2>
@@ -204,7 +198,7 @@
         </div>
       </section>
 
-      <!-- 🟢 보유 자산 및 대출 테이블 섹션 -->
+      <!-- 보유 자산 및 대출 내역 테이블 -->
       <section id="holdings" style="margin-top: 30px; margin-bottom: 40px;">
         <div class="section-heading" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
           <h2>보유 자산 및 대출 내역</h2>
@@ -227,7 +221,6 @@
                 </tr>
               </thead>
               <tbody id="holdings-body">
-                <!-- code.js를 통해 자산 항목이 들어옵니다 -->
               </tbody>
             </table>
           </div>
@@ -238,14 +231,11 @@
         </div>
       </section>
 
-      <!-- 히스토리 숨김 영역 (JS 연동) -->
-      <table style="display: none;">
-        <tbody id="tx-history-body"></tbody>
-      </table>
+      <table style="display: none;"><tbody id="tx-history-body"></tbody></table>
     </main>
   </div>
 
-  <!-- 🟢 자산/대출 추가 및 수정 모달 Dialog -->
+  <!-- 자산/대출 추가 및 수정 모달 Dialog -->
   <dialog id="tx-modal">
     <form id="tx-form" method="dialog">
       <div class="modal-heading">
@@ -287,7 +277,6 @@
           </select>
         </label>
 
-        <!-- 자산 필드 -->
         <label class="asset-field" id="type-label">매수/매도 구분
           <select id="tx-type" name="type">
             <option value="BUY">매수 (BUY)</option>
@@ -311,7 +300,6 @@
           <input type="number" step="any" id="tx-div-rate" name="dividendRate" value="0">
         </label>
 
-        <!-- 대출 필드 -->
         <label class="loan-field" style="display: none;">대출 원금
           <input type="number" step="any" id="tx-loan-amount" name="loanAmount" value="0">
         </label>
@@ -332,7 +320,7 @@
     </form>
   </dialog>
 
-  <!-- JS 로직 파일 연결 -->
+  <!-- JS 로직 연결 -->
   <script src="code.js"></script>
 </body>
 </html>
