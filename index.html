@@ -20,7 +20,7 @@
         <a class="brand" href="#top"><span class="brand-mark">P</span><span>portfolio</span></a>
         <nav aria-label="주 메뉴">
           <a class="nav-link active" href="#overview"><span>❖</span>개요</a>
-          <a class="nav-link" href="#briefing"><span>📰</span>뉴스 브리핑</a>
+          <a class="nav-link" href="#briefing"><span>📰</span>증시 브리핑</a>
           <a class="nav-link" href="#income-schedule"><span>💰</span>배당/이자</a>
           <a class="nav-link" href="#holdings"><span>目</span>보유 자산</a>
           <a class="nav-link" href="#transactions"><span>📜</span>거래 이력</a>
@@ -97,22 +97,54 @@
           </article>
         </section>
 
-        <!-- 2. 뉴스 브리핑 -->
+        <!-- 2. 네이버 증시 연동 뉴스/시황 브리핑 -->
         <section id="briefing" style="margin-top: 40px;">
           <div class="section-heading briefing-heading">
-            <div><p class="eyebrow">07:00 · 22:00 KST BRIEFING</p><h2>오늘의 주요 주식 뉴스</h2></div>
-            <div class="briefing-actions">
-              <span class="briefing-date" id="briefing-date">잠시만 기다려주세요</span>
-              <button class="secondary-button briefing-refresh" id="refresh-briefing" type="button">새로고침</button>
+            <div>
+              <p class="eyebrow">QUICK LINKS & MARKET BRIEFING</p>
+              <h2>주요 증시 시황 바로가기</h2>
             </div>
+            <span class="briefing-date" style="font-size: 0.85rem; color: #94a3b8;">네이버 증권 실시간 연동</span>
           </div>
-          <div class="card briefing-card" id="news">
-            <div class="briefing-loading" id="briefing-loading">아침 브리핑을 불러오고 있어요.</div>
-            <div id="briefing-content" hidden></div>
+
+          <div class="card briefing-card" style="padding: 24px;">
+            <p style="margin-top: 0; margin-bottom: 20px; color: #cbd5e1; font-size: 0.95rem; line-height: 1.5;">
+              클릭하시면 네이버 증권의 국내/해외 증시 종합 시황 및 주요 뉴스로 이동합니다.
+            </p>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+              <!-- 네이버 국내증시 -->
+              <a href="https://finance.naver.com/sise/" target="_blank" rel="noopener noreferrer" class="news-link-card">
+                <span style="font-size: 1.2rem;">🇰🇷</span>
+                <strong style="color: #f8fafc; font-size: 1rem;">네이버 국내증시</strong>
+                <span style="font-size: 0.8rem; color: #94a3b8;">코스피·코스닥 지수, 상한가, 주요 뉴스</span>
+              </a>
+
+              <!-- 네이버 해외증시 -->
+              <a href="https://finance.naver.com/world/" target="_blank" rel="noopener noreferrer" class="news-link-card">
+                <span style="font-size: 1.2rem;">🇺🇸</span>
+                <strong style="color: #f8fafc; font-size: 1rem;">네이버 해외증시</strong>
+                <span style="font-size: 0.8rem; color: #94a3b8;">다우·나스닥·S&P500 지수, 환율, 글로벌 뉴스</span>
+              </a>
+
+              <!-- 네이버 증권뉴스 -->
+              <a href="https://finance.naver.com/news/" target="_blank" rel="noopener noreferrer" class="news-link-card">
+                <span style="font-size: 1.2rem;">📰</span>
+                <strong style="color: #f8fafc; font-size: 1rem;">네이버 증권뉴스</strong>
+                <span style="font-size: 0.8rem; color: #94a3b8;">실시간 속보, 공시, 전문가 칼럼</span>
+              </a>
+
+              <!-- 유튜브 증시 브리핑 -->
+              <a href="https://www.youtube.com/results?search_query=%EB%AF%B8%EA%B5%AD%EC%A6%9D%EC%8B%9C+%EB%A1%9C%EA%B7%B8%EC%9D%B8" target="_blank" rel="noopener noreferrer" class="news-link-card">
+                <span style="font-size: 1.2rem;">📺</span>
+                <strong style="color: #f8fafc; font-size: 1rem;">유튜브 증시 브리핑</strong>
+                <span style="font-size: 0.8rem; color: #94a3b8;">장전/장후 시황 요약 영상 검색</span>
+              </a>
+            </div>
           </div>
         </section>
 
-        <!-- 배당 및 이자 수입 현황 -->
+        <!-- 3. 배당 및 이자 수입 현황 -->
         <section id="income-schedule" style="margin-top: 40px;">
           <div class="section-heading">
             <div><p class="eyebrow">PASSIVE INCOME</p><h2>예상 현금흐름 (배당 / 이자 수입)</h2></div>
@@ -131,7 +163,7 @@
           </div>
         </section>
 
-        <!-- 3. 기간별 실현 손익 요약 카드 -->
+        <!-- 4. 기간별 실현 손익 요약 카드 -->
         <section id="realized-returns" style="margin-top: 40px;">
           <div class="section-heading">
             <div><p class="eyebrow">PERFORMANCE REPORT</p><h2>기간별 실현 손익 분석 (매도 기록 기반)</h2></div>
@@ -152,7 +184,7 @@
           </div>
         </section>
 
-        <!-- 4. 보유 자산 요약 -->
+        <!-- 5. 보유 자산 요약 -->
         <section id="holdings" style="margin-top: 40px;">
           <div class="section-heading">
             <div><p class="eyebrow">HOLDINGS</p><h2>현재 보유 자산 및 대출 잔액</h2></div>
@@ -180,7 +212,7 @@
           </div>
         </section>
 
-        <!-- 5. 매수 / 매도 / 대출 이력 기록 섹션 -->
+        <!-- 6. 매수 / 매도 / 대출 이력 기록 섹션 -->
         <section id="transactions" style="margin-top: 40px;">
           <div class="section-heading">
             <div><p class="eyebrow">TRANSACTION HISTORY</p><h2>거래 및 대출 이력</h2></div>
@@ -203,15 +235,13 @@
                 <tbody id="tx-history-body"></tbody>
               </table>
             </div>
-            <div id="tx-pagination" style="display: flex; justify-content: center; align-items: center; gap: 8px; padding: 16px; border-top: 1px solid rgba(255, 255, 255, 0.05);"></div>
           </div>
         </section>
 
-        <!-- 6. 투자 시뮬레이터 -->
+        <!-- 7. 투자 시뮬레이터 -->
         <section id="simulators" style="margin-top: 40px;">
           <div class="section-heading simulator-heading">
-            <div><p class="eyebrow">PLANNING LAB</p><h2>투자 시뮬레이터 & 리밸런싱</h2></div>
-            <span class="simulator-note">가정에 따른 예상치입니다</span>
+            <div><p class="eyebrow">PLANNING LAB</p><h2>투자 시뮬레이터</h2></div>
           </div>
           <div class="simulator-grid" aria-label="투자 시뮬레이터">
             <article class="card simulator-card">
@@ -248,26 +278,6 @@
                 <canvas id="spCanvas"></canvas>
               </div>
             </article>
-
-            <!-- 포트폴리오 리밸런싱 계산기 카드 -->
-            <article class="card simulator-card" style="grid-column: 1 / -1; margin-top: 20px;">
-              <div class="simulator-title">
-                <div>
-                  <p class="eyebrow">PORTFOLIO REBALANCING</p>
-                  <h3>포트폴리오 리밸런싱 계산기</h3>
-                </div>
-                <span class="sim-badge" style="background: rgba(129, 140, 248, 0.2); color: #818cf8; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem;">목표 비중 맞춤</span>
-              </div>
-
-              <div id="rebalance-inputs" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px;"></div>
-
-              <div class="sim-results" style="margin-bottom: 16px;">
-                <div><span>목표 비중 합계</span><strong id="rebalance-total-ratio">0%</strong></div>
-                <div><span>추가 매수 필요 총액</span><strong id="rebalance-needed-sum">₩0</strong></div>
-              </div>
-
-              <div id="rebalance-actions-list" style="background: rgba(255, 255, 255, 0.03); border-radius: 8px; padding: 12px; font-size: 0.85rem;"></div>
-            </article>
           </div>
         </section>
       </main>
@@ -284,12 +294,7 @@
         <div class="form-grid">
           <label class="form-field">
             <span>거래 / 대출 개시일</span>
-            <input 
-              required 
-              type="date" 
-              name="date" 
-              id="tx-date" 
-            />
+            <input required type="date" name="date" id="tx-date" />
           </label>
 
           <label class="form-field">
@@ -346,7 +351,6 @@
       </form>
     </dialog>
 
-    <script src="config.js"></script>
     <script src="code.js"></script>
   </body>
 </html>
