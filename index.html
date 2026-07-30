@@ -5,8 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>JJPort - 개인 자산 관리 대시보드</title>
   
-  <!-- CSS 스타일시트 연결 -->
+  <!-- 🟢 모든 CSS 스타일시트 연결 복구 -->
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="simulator.css">
+  <link rel="stylesheet" href="enhancements.css">
   
   <!-- 1. External Libraries (Chart.js & Supabase SDK) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -59,6 +61,32 @@
         <div id="rank-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #6366f1, #10b981); transition: width 0.5s ease;"></div>
       </div>
       <p id="rank-caption" style="margin: 0; color: #94a3b8; font-size: 0.85rem;">로그인 후 자산을 추가하면 비교해 드려요</p>
+    </section>
+
+    <!-- 🟢 복구됨: S&P 500 자산 시뮬레이터 섹션 -->
+    <section class="simulator-section" style="margin-top: 30px; background: #1e293b; padding: 20px; border-radius: 10px;">
+      <h2>📈 S&P 500 자산 성장 시뮬레이터</h2>
+      <div class="simulator-controls" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin: 15px 0;">
+        <label>
+          초기 투자금 (원):
+          <input type="number" id="sim-initial" value="10000000" style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 4px;">
+        </label>
+        <label>
+          월 적립액 (원):
+          <input type="number" id="sim-monthly" value="500000" style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 4px;">
+        </label>
+        <label>
+          투자 기간 (년):
+          <input type="number" id="sim-years" value="10" style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 4px;">
+        </label>
+        <label>
+          연평균 수익률 (%):
+          <input type="number" id="sim-rate" value="10" step="0.1" style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 4px;">
+        </label>
+      </div>
+      <div style="height: 300px; margin-top: 15px;">
+        <canvas id="simulatorChart"></canvas>
+      </div>
     </section>
 
     <!-- 🟢 자산 추가 버튼 및 보유 자산 리스트 -->
@@ -190,7 +218,8 @@
     </form>
   </dialog>
 
-  <!-- JS 로직 파일 연결 -->
+  <!-- 🟢 JS 로직 파일 연결 복구 (config.js 연결 추가) -->
+  <script src="config.js"></script>
   <script src="code.js"></script>
 </body>
 </html>
