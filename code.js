@@ -1,5 +1,5 @@
 // =========================================================
-// 🚀 대시보드 통합 관리 & 엔진 (code.js)
+// 🚀 대시보드 통합 관리 & 엔진 (code.js) - 30대 추정 상위 % 보완판
 // =========================================================
 
 (function initDashboardApp() {
@@ -24,7 +24,40 @@
   const parseVal = (id) => parseFloat(getEl(id)?.value.replace(/,/g, "")) || 0;
   const formatKrw = (val) => "₩" + Math.round(val).toLocaleString("ko-KR");
 
-  // 1️⃣ 실시간 환율 정보
+  // 1️⃣ 30대 순자산 추정 상위 % 계산 로직 (가계금융복지조사 데이터 연동)
+  function calculate30sPercentile(netWorth) {
+    if (netWorth <= 0) return 99.9;
+
+    // [순자산 기준금액(원), 상위 퍼센트]
+    const benchmarks = [
+      [2000000000, 0.1],
+      [1310000000, 1.0],
+      [760000000, 5.0],
+      [540000000, 10.0],
+      [380000000, 20.0],
+      [260000000, 30.0],
+      [150000000, 50.0],
+      [60000000, 70.0],
+      [10000000, 90.0]
+    ];
+
+    if (netWorth >= benchmarks[0][0]) return 0.1;
+    if (netWorth <= benchmarks[benchmarks.length - 1][0]) return 90.0;
+
+    for (let i = 0; i < benchmarks.length - 1; i++) {
+      const [highVal, highPct] = benchmarks[i];
+      const [lowVal, lowPct] = benchmarks[i + 1];
+
+      if (netWorth <= highVal && netWorth >= lowVal) {
+        const ratio = (netWorth - lowVal) / (highVal - lowVal);
+        const pct = lowPct - ratio * (lowPct - highPct);
+        return Math.max(0.1, Math.min(99.9, pct));
+      }
+    }
+    return 50.0;
+  }
+
+  // 2️⃣ 실시간 환율 정보
   async function fetchLiveRate() {
     try {
       const res = await fetch("https://open.er-api.com/v6/latest/USD");
@@ -37,7 +70,7 @@
     }
   }
 
-  // 2️⃣ 모달 제어 및 대출 필드 동적 전환
+  // 3️⃣ 모달 제어 및 대출 필드 동적 전환
   const modal = getEl("tx-modal");
   const form = getEl("tx-form");
   const categorySelect = getEl("tx-category");
@@ -154,7 +187,7 @@
     renderAll();
   }
 
-  // 3️⃣ 원리금 균등상환 계산
+  // 4️⃣ 원리금 균등상환 계산
   function calculateLoanStatus(startDateStr, principal, annualRatePercent, totalMonths) {
     if (!principal || principal <= 0) return { currentBalance: 0, monthlyPayment: 0, passedMonths: 0 };
 
@@ -186,7 +219,7 @@
     };
   }
 
-  // 4️⃣ 포트폴리오 정산 엔진
+  // 5️⃣ 포트폴리오 정산 엔진
   function processPortfolio() {
     const holdingsMap = {};
     const sortedTxs = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -243,7 +276,67 @@
     return holdingsMap;
   }
 
-  // 5️⃣ 패시브 인컴 연산
+  // 6️⃣ 메인 요약 대시보드 및 30대 상위 % 갱신
+  function updateHeroOverview(activeHoldings) {
+    let totalAssetKrw = 0;
+    let totalDebtKrw = 0;
+    let totalCostKrw = 0;
+    let investedValueKrw = 0;
+    let cashValueKrw = 0;
+
+    activeHoldings.forEach(h => {
+      const isUsd = h.currency === "USD";
+      const valKrw = isUsd ? (h.qty * h.currentPrice) * liveUsdKrwRate : h.qty * h.currentPrice;
+      const costKrw = isUsd ? (h.qty * h.avgPrice) * liveUsdKrwRate : h.qty * h.avgPrice;
+
+      if (h.category === "대출") {
+        totalDebtKrw += valKrw;
+      } else {
+        totalAssetKrw += valKrw;
+        totalCostKrw += costKrw;
+        if (h.category === "현금") cashValueKrw += valKrw;
+        else investedValueKrw += valKrw;
+      }
+    });
+
+    const netWorthKrw = totalAssetKrw - totalDebtKrw;
+    const totalUnrealizedProfitKrw = totalAssetKrw - totalCostKrw;
+
+    if (getEl("net-worth")) getEl("net-worth").textContent = formatKrw(netWorthKrw);
+    if (getEl("invested-value")) getEl("invested-value").textContent = formatKrw(investedValueKrw);
+    if (getEl("cash-value")) getEl("cash-value").textContent = formatKrw(cashValueKrw);
+
+    // 🎯 30대 추정 상위 % 표시 갱신
+    const percentile = calculate30sPercentile(netWorthKrw);
+    const percentileEl = getEl("korea-30s-percentile");
+    if (percentileEl) {
+      percentileEl.textContent = `상위 ${percentile.toFixed(1)}%`;
+    }
+
+    const profitEl = getEl("monthly-profit");
+    if (profitEl) {
+      const sign = totalUnrealizedProfitKrw >= 0 ? "+" : "";
+      profitEl.textContent = `${sign}${formatKrw(totalUnrealizedProfitKrw)}`;
+      profitEl.style.color = totalUnrealizedProfitKrw >= 0 ? "#10b981" : "#ef4444";
+    }
+
+    if (getEl("monthly-detail")) {
+      const rate = totalCostKrw > 0 ? (totalUnrealizedProfitKrw / totalCostKrw) * 100 : 0;
+      getEl("monthly-detail").textContent = `총 수익률: ${rate.toFixed(2)}%`;
+    }
+
+    const rawTarget = parseVal("target-amount");
+    if (rawTarget > 0) {
+      const progress = Math.min(Math.max((netWorthKrw / rawTarget) * 100, 0), 100);
+      const remaining = Math.max(rawTarget - netWorthKrw, 0);
+
+      if (getEl("goal-percent-text")) getEl("goal-percent-text").textContent = `${progress.toFixed(1)}%`;
+      if (getEl("goal-remaining-text")) getEl("goal-remaining-text").textContent = `목표까지 ${formatKrw(remaining)} 남음`;
+      if (getEl("goal-bar-fill")) getEl("goal-bar-fill").style.width = `${progress}%`;
+    }
+  }
+
+  // 7️⃣ 패시브 인컴 연산
   function calculatePassiveIncome(activeHoldings) {
     let annualIncomeKrw = 0;
     let totalInvestedValueKrw = 0;
@@ -264,7 +357,7 @@
     if (getEl("portfolio-yield-text")) getEl("portfolio-yield-text").textContent = `${portfolioYield.toFixed(2)}%`;
   }
 
-  // 6️⃣ 시뮬레이터 로직
+  // 8️⃣ 시뮬레이터 로직
   function initSimulators() {
     ["dividend-initial", "dividend-monthly", "sp-initial", "sp-monthly", "sp-exchange-rate", "target-amount"].forEach(id => {
       getEl(id)?.addEventListener("input", (e) => {
@@ -379,60 +472,7 @@
     setInst(newInst);
   }
 
-  // 7️⃣ 메인 요약 대시보드
-  function updateHeroOverview(activeHoldings) {
-    let totalAssetKrw = 0;
-    let totalDebtKrw = 0;
-    let totalCostKrw = 0;
-    let investedValueKrw = 0;
-    let cashValueKrw = 0;
-
-    activeHoldings.forEach(h => {
-      const isUsd = h.currency === "USD";
-      const valKrw = isUsd ? (h.qty * h.currentPrice) * liveUsdKrwRate : h.qty * h.currentPrice;
-      const costKrw = isUsd ? (h.qty * h.avgPrice) * liveUsdKrwRate : h.qty * h.avgPrice;
-
-      if (h.category === "대출") {
-        totalDebtKrw += valKrw;
-      } else {
-        totalAssetKrw += valKrw;
-        totalCostKrw += costKrw;
-        if (h.category === "현금") cashValueKrw += valKrw;
-        else investedValueKrw += valKrw;
-      }
-    });
-
-    const netWorthKrw = totalAssetKrw - totalDebtKrw;
-    const totalUnrealizedProfitKrw = totalAssetKrw - totalCostKrw;
-
-    if (getEl("net-worth")) getEl("net-worth").textContent = formatKrw(netWorthKrw);
-    if (getEl("invested-value")) getEl("invested-value").textContent = formatKrw(investedValueKrw);
-    if (getEl("cash-value")) getEl("cash-value").textContent = formatKrw(cashValueKrw);
-
-    const profitEl = getEl("monthly-profit");
-    if (profitEl) {
-      const sign = totalUnrealizedProfitKrw >= 0 ? "+" : "";
-      profitEl.textContent = `${sign}${formatKrw(totalUnrealizedProfitKrw)}`;
-      profitEl.style.color = totalUnrealizedProfitKrw >= 0 ? "#10b981" : "#ef4444";
-    }
-
-    if (getEl("monthly-detail")) {
-      const rate = totalCostKrw > 0 ? (totalUnrealizedProfitKrw / totalCostKrw) * 100 : 0;
-      getEl("monthly-detail").textContent = `총 수익률: ${rate.toFixed(2)}%`;
-    }
-
-    const rawTarget = parseVal("target-amount");
-    if (rawTarget > 0) {
-      const progress = Math.min(Math.max((netWorthKrw / rawTarget) * 100, 0), 100);
-      const remaining = Math.max(rawTarget - netWorthKrw, 0);
-
-      if (getEl("goal-percent-text")) getEl("goal-percent-text").textContent = `${progress.toFixed(1)}%`;
-      if (getEl("goal-remaining-text")) getEl("goal-remaining-text").textContent = `목표까지 ${formatKrw(remaining)} 남음`;
-      if (getEl("goal-bar-fill")) getEl("goal-bar-fill").style.width = `${progress}%`;
-    }
-  }
-
-  // 8️⃣ 자산 배분 도넛 차트
+  // 9️⃣ 자산 배분 도넛 차트
   function renderAllocationChart(activeHoldings) {
     const canvas = getEl("allocationCanvas");
     const legendEl = getEl("legend");
@@ -492,7 +532,7 @@
     });
   }
 
-  // 9️⃣ 전체 렌더링
+  // 🔟 전체 렌더링
   function renderAll() {
     const holdingsMap = processPortfolio();
     const activeHoldings = Object.values(holdingsMap).filter(h => h.qty > 0 && h.currentPrice >= 0);
