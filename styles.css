@@ -39,10 +39,12 @@ h2{margin-bottom:0;font-size:20px;letter-spacing:-.8px}
 .as-of{font:11px "DM Mono",monospace;color:var(--muted)}
 button{font-family:inherit}
 .icon-button,.avatar{border:1px solid var(--line);background:var(--surface);color:#fff}
-.icon-button{border-radius:9px;width:34px;height:34px}
+.icon-button{border-radius:99px;width:34px;height:34px}
 .avatar{width:34px;height:34px;border-radius:50%;font-size:10px;font-weight:700;background:#474064}
 .hero-grid{display:grid;grid-template-columns:1.65fr .9fr .95fr;gap:16px}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:13px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:20px;}
+.card h3{margin-top:0;font-size:0.9rem;color:var(--muted);}
+.card .amount{font-size:1.5rem;font-weight:bold;margin:10px 0 0 0;color:#fff;}
 .total-card{min-height:264px;padding:24px 26px 0;position:relative;overflow:hidden}
 .card-label{font-size:12px;color:var(--muted);margin-bottom:11px;font-weight:600}
 .value-row{display:flex;align-items:center;gap:11px}
@@ -234,30 +236,29 @@ dialog form{padding:26px}
 /* 보유 자산 표 헤더 폰트 크기 및 스타일 강화 */
 table th, 
 .asset-table th {
-  font-size: 1.05rem !important; /* 폰트 크기 확대 (기존보다 크게) */
-  font-weight: 700 !important;   /* 글자 두께 굵게 */
-  padding: 12px 16px;            /* 여백을 살짝 늘려 답답함 해소 */
-  letter-spacing: -0.3px;        /* 가독성을 위한 자간 조정 */
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
+  padding: 12px 16px;
+  letter-spacing: -0.3px;
 }
 
 /* 보유 자산 표 헤더 스타일 통일 */
 table th, 
 .asset-table th {
-  font-family: inherit !important;     /* 전체 웹사이트 폰트 스타일 100% 상속 */
-  font-size: 0.95rem !important;        /* 주변 본문과 균형을 맞춘 적절한 크기 */
-  font-weight: 600 !important;          /* 과하지 않고 깔끔한 굵기 */
-  color: #94a3b8 !important;            /* 다른 보조 텍스트들과 동일한 톤앤매너 색상 */
-  text-align: left;                     /* 정렬 통일 */
-  padding: 12px 14px;                   /* 답답하지 않은 깔끔한 여백 */
-  border-bottom: 1px solid #334155;     /* 테이블 경계선 톤 통일 */
-  letter-spacing: -0.02em;              /* 자간 정돈 */
+  font-family: inherit !important;
+  font-size: 0.95rem !important;
+  font-weight: 600 !important;
+  color: #94a3b8 !important;
+  text-align: left;
+  padding: 12px 14px;
+  border-bottom: 1px solid #334155;
+  letter-spacing: -0.02em;
 }
 
 /* =========================================================
    🎮 시뮬레이터 구역 폰트 및 UI 스타일 통일
    ========================================================= */
 
-/* 1. 시뮬레이터 전체 기본 폰트 상속 */
 #simulator, 
 .simulator-container,
 .simulator-box {
@@ -265,7 +266,6 @@ table th,
   color: #f8fafc;
 }
 
-/* 2. 시뮬레이터 제목 / 서브 타이틀 */
 #simulator h2, 
 #simulator h3, 
 .simulator-title {
@@ -276,17 +276,15 @@ table th,
   margin-bottom: 12px;
 }
 
-/* 3. 입력 폼 라벨 (텍스트 가독성 개선) */
 #simulator label {
   font-family: inherit !important;
   font-size: 0.875rem !important;
   font-weight: 600 !important;
-  color: #94a3b8 !important; /* 깔끔한 보조 텍스트 톤 */
+  color: #94a3b8 !important;
   margin-bottom: 6px;
   display: block;
 }
 
-/* 4. 입력창(Input, Select) 폰트 및 스타일 */
 #simulator input, 
 #simulator select, 
 #simulator textarea {
@@ -306,17 +304,15 @@ table th,
   font-size: 0.9rem;
 }
 
-/* 5. 시뮬레이터 내부 결과값 / 숫자 강조 */
 #simulator .result-value,
 #simulator .sim-output {
   font-family: inherit !important;
   font-size: 1.15rem !important;
   font-weight: 700 !important;
-  color: #38bdf8 !important; /* 주요 포인트 색상 */
+  color: #38bdf8 !important;
   letter-spacing: -0.02em;
 }
 
-/* 6. 시뮬레이터 실행/계산 버튼 */
 #simulator button,
 .sim-btn {
   font-family: inherit !important;
@@ -327,9 +323,6 @@ table th,
   border-radius: 8px;
 }
 
-/* =========================================================
-   🔧 모달 입력 폼 레이아웃 보완 (줄바꿈 방지 & 대출 필드 정렬)
-   ========================================================= */
 .form-grid label,
 .form-grid .form-field {
   display: flex !important;
