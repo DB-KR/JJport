@@ -112,7 +112,7 @@
           </div>
         </section>
 
-        <!-- 💡 [신규 기능 추가] 배당 및 이자 수입 현황 -->
+        <!-- 배당 및 이자 수입 현황 -->
         <section id="income-schedule" style="margin-top: 40px;">
           <div class="section-heading">
             <div><p class="eyebrow">PASSIVE INCOME</p><h2>예상 현금흐름 (배당 / 이자 수입)</h2></div>
@@ -181,32 +181,31 @@
         </section>
 
         <!-- 5. 매수 / 매도 / 대출 이력 기록 섹션 -->
-<section id="transactions" style="margin-top: 40px;">
-  <div class="section-heading">
-    <div><p class="eyebrow">TRANSACTION HISTORY</p><h2>거래 및 대출 이력</h2></div>
-  </div>
-  <div class="card table-card">
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th>일자</th>
-            <th>구분</th>
-            <th>자산명</th>
-            <th>통화</th>
-            <th>수량</th>
-            <th>단가/원금</th>
-            <th>총액</th>
-            <th>작업</th>
-          </tr>
-        </thead>
-        <tbody id="tx-history-body"></tbody>
-      </table>
-    </div>
-    <!-- 💡 [신규 추가] 페이지네이션 컨트롤러 -->
-    <div id="tx-pagination" style="display: flex; justify-content: center; align-items: center; gap: 8px; padding: 16px; border-top: 1px solid rgba(255, 255, 255, 0.05);"></div>
-  </div>
-</section>
+        <section id="transactions" style="margin-top: 40px;">
+          <div class="section-heading">
+            <div><p class="eyebrow">TRANSACTION HISTORY</p><h2>거래 및 대출 이력</h2></div>
+          </div>
+          <div class="card table-card">
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>일자</th>
+                    <th>구분</th>
+                    <th>자산명</th>
+                    <th>통화</th>
+                    <th>수량</th>
+                    <th>단가/원금</th>
+                    <th>총액</th>
+                    <th>작업</th>
+                  </tr>
+                </thead>
+                <tbody id="tx-history-body"></tbody>
+              </table>
+            </div>
+            <div id="tx-pagination" style="display: flex; justify-content: center; align-items: center; gap: 8px; padding: 16px; border-top: 1px solid rgba(255, 255, 255, 0.05);"></div>
+          </div>
+        </section>
 
         <!-- 6. 투자 시뮬레이터 -->
         <section id="simulators" style="margin-top: 40px;">
@@ -274,64 +273,71 @@
       </main>
     </div>
 
-    <!-- 💡 등록 / 수정 통합 모달 -->
+    <!-- 등록 / 수정 통합 모달 -->
     <dialog id="tx-modal">
       <form id="tx-form" method="dialog">
         <input type="hidden" id="edit-tx-id" value="" />
         <div class="modal-heading">
           <div><p class="eyebrow" id="modal-eyebrow">NEW RECORD</p><h2 id="modal-title">자산 / 대출 기록하기</h2></div>
           <button class="close" type="button" id="close-tx-modal" aria-label="닫기">×</button>
-          <div class="form-grid">
-            <label class="form-field">
-              <span>거래 / 대출 개시일</span>
-              <input required type="date" name="date" id="tx-date" />
-            </label>
-            
-            <label class="form-field">
-              <span>분류</span>
-              <select name="category" id="tx-category">
-                <option value="해외주식">해외주식</option>
-                <option value="국내주식">국내주식</option>
-                <option value="ETF">ETF</option>
-                <option value="부동산">부동산</option>
-                <option value="가상자산">가상자산</option>
-                <option value="채권">채권</option>
-                <option value="현금">현금</option>
-                <option value="대출">대출(원리금상환)</option>
-              </select>
-            </label>
-            
-            <label class="form-field" id="type-label">
-              <span>구분</span>
-              <select name="type" id="tx-type">
-                <option value="BUY">매수 (BUY)</option>
-                <option value="SELL">매도 (SELL)</option>
-              </select>
-            </label>
-            <label class="form-field">
-              <span>항목명 / 대출명</span>
-              <input required id="tx-name" name="name" placeholder="예: AAPL, 주담대, 반포자이" />
-            </label>
-            
-            <label class="form-field">
-              <span>통화</span>
-              <select name="currency" id="tx-currency">
-                <option value="KRW">원화 (KRW ₩)</option>
-                <option value="USD">달러 (USD $)</option>
-              </select>
-            </label>
-            
-            <!-- 일반 자산 입력 필드 -->
-            <label class="form-field asset-field"><span>수량</span><input id="tx-qty" min="0.0001" step="any" type="number" name="quantity" placeholder="1" value="1" /></label>
-            <label class="form-field asset-field"><span>거래 단가 / 매입가</span><input id="tx-price" min="0" step="any" type="number" name="price" placeholder="0" /></label>
-            <label class="form-field asset-field"><span>현재가 (시세)</span><input id="tx-curr-price" min="0" step="any" type="number" name="currentPrice" placeholder="0" /></label>
-            <label class="form-field asset-field"><span>연 배당/이자율 (%)</span><input id="tx-div-rate" min="0" max="100" step="0.1" type="number" name="dividendRate" placeholder="예: 3.5" /></label>
-            
-            <!-- 대출 전용 원리금 상환 입력 필드 -->
-            <label class="form-field loan-field" style="display: none;"><span>대출 원금 (원)</span><input id="tx-loan-amount" type="number" name="loanAmount" placeholder="예: 300000000" /></label>
-            <label class="form-field loan-field" style="display: none;"><span>연 이자율 (%)</span><input id="tx-loan-rate" type="number" step="0.01" name="interestRate" placeholder="예: 4.2" /></label>
-            <label class="form-field loan-field" style="display: none;"><span>상환 기간 (개월)</span><input id="tx-loan-term" type="number" name="loanTermMonths" placeholder="예: 360 (30년)" /></label>
-          </div>
+        </div>
+        <div class="form-grid">
+          <label class="form-field">
+            <span>거래 / 대출 개시일</span>
+            <input 
+              required 
+              type="date" 
+              name="date" 
+              id="tx-date" 
+            />
+          </label>
+
+          <label class="form-field">
+            <span>분류</span>
+            <select name="category" id="tx-category">
+              <option value="해외주식">해외주식</option>
+              <option value="국내주식">국내주식</option>
+              <option value="ETF">ETF</option>
+              <option value="부동산">부동산</option>
+              <option value="가상자산">가상자산</option>
+              <option value="채권">채권</option>
+              <option value="현금">현금</option>
+              <option value="대출">대출(원리금상환)</option>
+            </select>
+          </label>
+
+          <label class="form-field" id="type-label">
+            <span>구분</span>
+            <select name="type" id="tx-type">
+              <option value="BUY">매수 (BUY)</option>
+              <option value="SELL">매도 (SELL)</option>
+            </select>
+          </label>
+
+          <label class="form-field">
+            <span>항목명 / 대출명</span>
+            <input required id="tx-name" name="name" placeholder="예: AAPL, 주담대, 반포자이" />
+          </label>
+          
+          <label class="form-field">
+            <span>통화</span>
+            <select name="currency" id="tx-currency">
+              <option value="KRW">원화 (KRW ₩)</option>
+              <option value="USD">달러 (USD $)</option>
+            </select>
+          </label>
+
+          <!-- 일반 자산 입력 필드 -->
+          <label class="form-field asset-field"><span>수량</span><input id="tx-qty" min="0.0001" step="any" type="number" name="quantity" placeholder="1" value="1" /></label>
+          <label class="form-field asset-field"><span>거래 단가 / 매입가</span><input id="tx-price" min="0" step="any" type="number" name="price" placeholder="0" /></label>
+          <label class="form-field asset-field"><span>현재가 (시세)</span><input id="tx-curr-price" min="0" step="any" type="number" name="currentPrice" placeholder="0" /></label>
+          <label class="form-field asset-field"><span>연 배당/이자율 (%)</span><input id="tx-div-rate" min="0" max="100" step="0.1" type="number" name="dividendRate" placeholder="예: 3.5" /></label>
+
+          <!-- 대출 전용 원리금 상환 입력 필드 -->
+          <label class="form-field loan-field" style="display: none;"><span>대출 원금 (원)</span><input id="tx-loan-amount" type="number" name="loanAmount" placeholder="예: 300000000" /></label>
+          <label class="form-field loan-field" style="display: none;"><span>연 이자율 (%)</span><input id="tx-loan-rate" type="number" step="0.01" name="interestRate" placeholder="예: 4.2" /></label>
+          <label class="form-field loan-field" style="display: none;"><span>상환 기간 (개월)</span><input id="tx-loan-term" type="number" name="loanTermMonths" placeholder="예: 360 (30년)" /></label>
+        </div>
 
         <div class="form-actions">
           <button class="secondary-button" type="button" id="cancel-tx-modal">취소</button>
