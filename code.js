@@ -105,7 +105,6 @@
         txData.quantity = parseFloat(formData.get("quantity")) || 0;
         txData.price = parseFloat(formData.get("price")) || 0;
         txData.currentPrice = parseFloat(formData.get("currentPrice")) || 0;
-        txData.dividendRate = parseFloat(formData.get("dividendRate")) || 0; // 💡 연 배당/이자율 수집
       }
 
       if (editId) {
@@ -156,7 +155,6 @@
       document.getElementById("tx-qty").value = tx.quantity || 1;
       document.getElementById("tx-price").value = tx.price || 0;
       document.getElementById("tx-curr-price").value = tx.currentPrice || 0;
-      document.getElementById("tx-div-rate").value = tx.dividendRate || 0; // 💡 수정 모달에 기존 배당률 설정
     }
 
     modal.showModal();
@@ -249,14 +247,12 @@
           currency: tx.currency,
           qty: 0,
           avgPrice: 0,
-          currentPrice: tx.currentPrice,
-          dividendRate: tx.dividendRate || 0
+          currentPrice: tx.currentPrice
         };
       }
 
       const item = holdingsMap[itemKey];
       item.currentPrice = tx.currentPrice;
-      if (tx.dividendRate !== undefined) item.dividendRate = tx.dividendRate;
 
       if (tx.type === "BUY") {
         const totalCost = (item.qty * item.avgPrice) + (tx.quantity * tx.price);
@@ -288,38 +284,6 @@
     });
 
     return { holdingsMap, realizedPnl };
-  }
-
-  // 💡 [신규 추가] 패시브 인컴(배당/이자) 계산 함수
-  function calculatePassiveIncome(activeHoldings) {
-    let annualIncomeKrw = 0;
-    let totalInvestedValueKrw = 0;
-
-    activeHoldings.forEach(h => {
-      if (h.category === "대출") return;
-
-      const isUsd = h.currency === "USD";
-      const valKrw = isUsd ? (h.qty * h.currentPrice) * liveUsdKrwRate : h.qty * h.currentPrice;
-      
-      if (h.category !== "현금") {
-        totalInvestedValueKrw += valKrw;
-      }
-
-      if (h.dividendRate && h.dividendRate > 0) {
-        annualIncomeKrw += valKrw * (h.dividendRate / 100);
-      }
-    });
-
-    const monthlyIncomeKrw = annualIncomeKrw / 12;
-    const portfolioYield = totalInvestedValueKrw > 0 ? (annualIncomeKrw / totalInvestedValueKrw) * 100 : 0;
-
-    const monthlyEl = document.getElementById("monthly-income-text");
-    const annualEl = document.getElementById("annual-income-detail");
-    const yieldEl = document.getElementById("portfolio-yield-text");
-
-    if (monthlyEl) monthlyEl.textContent = "₩" + Math.round(monthlyIncomeKrw).toLocaleString("ko-KR");
-    if (annualEl) annualEl.textContent = `연간 총 ₩${Math.round(annualIncomeKrw).toLocaleString("ko-KR")} 예상`;
-    if (yieldEl) yieldEl.textContent = `${portfolioYield.toFixed(2)}%`;
   }
 
   // 5️⃣ 메인 요약 대시보드
@@ -463,7 +427,6 @@
 
     updateHeroOverview(activeHoldings);
     renderAllocationChart(activeHoldings);
-    calculatePassiveIncome(activeHoldings); // 💡 배당 수입 실시간 계산 연동
 
     // 내역 테이블
     const txBody = document.getElementById("tx-history-body");
