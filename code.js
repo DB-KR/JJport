@@ -1,5 +1,5 @@
 // =========================================================
-// 🚀 대시보드 통합 관리 & 페이지네이션 & 뉴스 엔진 (code.js)
+// 🚀 대시보드 통합 관리 & 보유자산 수정/삭제 엔진 (code.js)
 // =========================================================
 
 (function initDashboardApp() {
@@ -8,10 +8,6 @@
   let allocationChartInstance = null;
   let divChartInstance = null;
   let spChartInstance = null;
-
-  // 💡 거래 이력 페이지네이션 변수
-  let currentTxPage = 1;
-  const txPerPage = 5;
 
   // 자산 분류별 테마 색상
   const categoryColors = {
@@ -119,7 +115,6 @@
         if (idx !== -1) transactions[idx] = txData;
       } else {
         transactions.push(txData);
-        currentTxPage = 1;
       }
 
       saveAndRender();
@@ -329,7 +324,7 @@
     if (yieldEl) yieldEl.textContent = `${portfolioYield.toFixed(2)}%`;
   }
 
-  // 6️⃣ 시뮬레이터 연산
+  // 6️⃣ 시뮬레이터 로직 (배당 & S&P500)
   function parseVal(id) {
     const el = document.getElementById(id);
     if (!el) return 0;
@@ -337,6 +332,7 @@
   }
 
   function initSimulators() {
+    // 콤마 자동 포맷팅
     const formatInputs = ["dividend-initial", "dividend-monthly", "sp-initial", "sp-monthly", "sp-exchange-rate", "target-amount"];
     formatInputs.forEach(id => {
       const el = document.getElementById(id);
@@ -364,6 +360,7 @@
     updateSpSim();
   }
 
+  // 배당 시뮬레이터 연산 및 차트
   function updateDividendSim() {
     const init = parseVal("dividend-initial");
     const monthly = parseVal("dividend-monthly");
@@ -397,6 +394,7 @@
     renderSimChart("divCanvas", divChartInstance, labels, totalData, "#55dfb2", (inst) => divChartInstance = inst);
   }
 
+  // S&P500 시뮬레이터 연산 및 차트
   function updateSpSim() {
     const initUsd = parseVal("sp-initial");
     const monthlyUsd = parseVal("sp-monthly");
@@ -427,6 +425,7 @@
     renderSimChart("spCanvas", spChartInstance, labels, totalData, "#818cf8", (inst) => spChartInstance = inst);
   }
 
+  // 시뮬레이터 라인 차트 공통 함수
   function renderSimChart(canvasId, instance, labels, data, color, setInst) {
     const canvas = document.getElementById(canvasId);
     if (!canvas || typeof Chart === "undefined") return;
@@ -509,7 +508,7 @@
     }
     if (detailEl) {
       const rate = totalCostKrw > 0 ? (totalUnrealizedProfitKrw / totalCostKrw) * 100 : 0;
-      detailEl.textContent = `(${rate.toFixed(2)}%)`;
+      detailEl.textContent = `총 수익률: ${rate.toFixed(2)}%`;
     }
 
     const targetInput = document.getElementById("target-amount");
@@ -596,151 +595,44 @@
     });
   }
 
-  // 9️⃣ 거래 이력 테이블 (5개씩 페이지네이션)
-  function renderTransactionsTable() {
-    const txBody = document.getElementById("tx-history-body");
-    const paginationEl = document.getElementById("tx-pagination");
-    if (!txBody) return;
-
-    if (transactions.length === 0) {
-      txBody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:#64748b; padding:20px;">기록된 거래 내역이 없습니다.</td></tr>`;
-      if (paginationEl) paginationEl.innerHTML = "";
-      return;
-    }
-
-    const sortedTxs = [...transactions].reverse();
-    const totalPages = Math.ceil(sortedTxs.length / txPerPage);
-
-    if (currentTxPage < 1) currentTxPage = 1;
-    if (currentTxPage > totalPages) currentTxPage = totalPages;
-
-    const startIdx = (currentTxPage - 1) * txPerPage;
-    const pageTxs = sortedTxs.slice(startIdx, startIdx + txPerPage);
-
-    txBody.innerHTML = pageTxs.map(t => {
-      const isLoan = t.category === "대출";
-      const symbol = t.currency === "USD" ? "$" : "₩";
-      return `
-        <tr>
-          <td>${t.date}</td>
-          <td><span style="color:${isLoan ? '#ef4444' : (t.type === 'BUY' ? '#10b981' : '#ef4444')}; font-weight:bold;">${isLoan ? '대출실행' : (t.type === 'BUY' ? '매수' : '매도')}</span></td>
-          <td><b>${t.name}</b></td>
-          <td>${t.currency}</td>
-          <td>${isLoan ? '1 (대출)' : t.quantity.toLocaleString("ko-KR")}</td>
-          <td>${symbol}${(isLoan ? t.loanAmount : t.price).toLocaleString("ko-KR")}</td>
-          <td>${symbol}${(isLoan ? t.loanAmount : t.quantity * t.price).toLocaleString("ko-KR")}</td>
-          <td>
-            <button onclick="editTransaction(${t.id})" style="background:none; border:none; color:#818cf8; cursor:pointer; margin-right:8px;">수정</button>
-            <button onclick="deleteTransaction(${t.id})" style="background:none; border:none; color:#ef4444; cursor:pointer;">삭제</button>
-          </td>
-        </tr>
-      `;
-    }).join("");
-
-    if (paginationEl) {
-      if (totalPages <= 1) {
-        paginationEl.innerHTML = "";
-        return;
-      }
-
-      let btnHtml = `
-        <button id="tx-prev-btn" ${currentTxPage === 1 ? 'disabled' : ''} style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:4px; padding:4px 10px; cursor:pointer; font-size:0.8rem; ${currentTxPage === 1 ? 'opacity:0.4; cursor:not-allowed;' : ''}">이전</button>
-      `;
-
-      for (let i = 1; i <= totalPages; i++) {
-        const isActive = i === currentTxPage;
-        btnHtml += `
-          <button class="tx-page-num" data-page="${i}" style="background:${isActive ? '#818cf8' : 'rgba(255,255,255,0.05)'}; border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:4px; padding:4px 10px; cursor:pointer; font-size:0.8rem; font-weight:${isActive ? 'bold' : 'normal'};">${i}</button>
-        `;
-      }
-
-      btnHtml += `
-        <button id="tx-next-btn" ${currentTxPage === totalPages ? 'disabled' : ''} style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:4px; padding:4px 10px; cursor:pointer; font-size:0.8rem; ${currentTxPage === totalPages ? 'opacity:0.4; cursor:not-allowed;' : ''}">다음</button>
-      `;
-
-      paginationEl.innerHTML = btnHtml;
-
-      const prevBtn = document.getElementById("tx-prev-btn");
-      const nextBtn = document.getElementById("tx-next-btn");
-
-      if (prevBtn) prevBtn.onclick = () => { currentTxPage--; renderTransactionsTable(); };
-      if (nextBtn) nextBtn.onclick = () => { currentTxPage++; renderTransactionsTable(); };
-
-      document.querySelectorAll(".tx-page-num").forEach(btn => {
-        btn.onclick = (e) => {
-          currentTxPage = parseInt(e.target.getAttribute("data-page"), 10);
-          renderTransactionsTable();
-        };
-      });
-    }
-  }
-
-  // 🔟 뉴스 연동 모듈 (최대 5개 제한 & AI 요약 준비)
-  function initNewsModule() {
-    const newsListEl = document.getElementById("news-list");
-    const refreshBtn = document.getElementById("refresh-news-btn");
-
-    async function fetchNews() {
-      if (!newsListEl) return;
-
-      newsListEl.innerHTML = `
-        <li style="color: #64748b; font-size: 0.85rem; text-align: center; padding: 20px 0;">
-          최신 뉴스를 불러오는 중입니다...
-        </li>`;
-
-      try {
-        // 💡 추후 연동할 실제 뉴스 API 호출 (Naver/Google/RSS API 등)
-        // const res = await fetch("YOUR_NEWS_API_ENDPOINT");
-        // const newsData = await res.json();
-        
-        const newsData = []; // API 연결 전 빈 배열
-
-        if (!newsData || newsData.length === 0) {
-          newsListEl.innerHTML = `
-            <li style="color: #64748b; font-size: 0.85rem; text-align: center; padding: 25px 0;">
-              연동된 뉴스 API가 없거나 수신된 기사가 없습니다.
-            </li>`;
-          return;
-        }
-
-        // 💡 상위 최대 5개 기사만 잘라서 표시
-        const top5News = newsData.slice(0, 5);
-
-        newsListEl.innerHTML = top5News.map(item => `
-          <li style="padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05);">
-            <a href="${item.url}" target="_blank" rel="noopener noreferrer" style="color: #f8fafc; text-decoration: none; font-size: 0.88rem; font-weight: 500; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-              ${item.title}
-            </a>
-            <span style="font-size: 0.75rem; color: #64748b; margin-top: 2px; display: block;">
-              ${item.source || '금융뉴스'} · ${item.date || ''}
-            </span>
-          </li>
-        `).join("");
-
-      } catch (err) {
-        console.error("뉴스 로드 오류:", err);
-        newsListEl.innerHTML = `
-          <li style="color: #ef4444; font-size: 0.85rem; text-align: center; padding: 20px 0;">
-            뉴스를 불러오는 중 오류가 발생했습니다.
-          </li>`;
-      }
-    }
-
-    if (refreshBtn) refreshBtn.addEventListener("click", fetchNews);
-    fetchNews();
-  }
-
-  // 11️⃣ 전체 렌더링
+  // 9️⃣ 전체 렌더링
   function renderAll() {
-    const { holdingsMap } = processPortfolio();
+    const { holdingsMap, realizedPnl } = processPortfolio();
     const activeHoldings = Object.values(holdingsMap).filter(h => h.qty > 0 && h.currentPrice >= 0);
 
     updateHeroOverview(activeHoldings);
     renderAllocationChart(activeHoldings);
     calculatePassiveIncome(activeHoldings);
-    renderTransactionsTable();
 
-    // 보유 자산 / 대출 테이블 렌더링
+    // 내역 테이블
+    const txBody = document.getElementById("tx-history-body");
+    if (txBody) {
+      if (transactions.length === 0) {
+        txBody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:#64748b; padding:20px;">기록된 거래 내역이 없습니다.</td></tr>`;
+      } else {
+        txBody.innerHTML = [...transactions].reverse().map(t => {
+          const isLoan = t.category === "대출";
+          const symbol = t.currency === "USD" ? "$" : "₩";
+          return `
+            <tr>
+              <td>${t.date}</td>
+              <td><span style="color:${isLoan ? '#ef4444' : (t.type === 'BUY' ? '#10b981' : '#ef4444')}; font-weight:bold;">${isLoan ? '대출실행' : (t.type === 'BUY' ? '매수' : '매도')}</span></td>
+              <td><b>${t.name}</b></td>
+              <td>${t.currency}</td>
+              <td>${isLoan ? '1 (대출)' : t.quantity.toLocaleString("ko-KR")}</td>
+              <td>${symbol}${(isLoan ? t.loanAmount : t.price).toLocaleString("ko-KR")}</td>
+              <td>${symbol}${(isLoan ? t.loanAmount : t.quantity * t.price).toLocaleString("ko-KR")}</td>
+              <td>
+                <button onclick="editTransaction(${t.id})" style="background:none; border:none; color:#818cf8; cursor:pointer; margin-right:8px;">수정</button>
+                <button onclick="deleteTransaction(${t.id})" style="background:none; border:none; color:#ef4444; cursor:pointer;">삭제</button>
+              </td>
+            </tr>
+          `;
+        }).join("");
+      }
+    }
+
+    // 보유 자산 / 대출 잔액 테이블
     const holdingsBody = document.getElementById("holdings-body");
     const emptyState = document.getElementById("empty-state");
 
@@ -799,11 +691,10 @@
     }
   }
 
-  // 앱 시작
+  // 초기화
   window.addEventListener("load", async () => {
     await fetchLiveRate();
     renderAll();
-    initSimulators();
-    initNewsModule();
+    initSimulators(); // 💡 시뮬레이터 연산 및 차트 렌더링 시작
   });
 })();
