@@ -1,5 +1,5 @@
 // =========================================================
-// 🚀 대시보드 통합 관리 & 예/적금 만기 수령액 연산 엔진 (code.js)
+// 🚀 대시보드 통합 관리 & 뉴스 브리핑 연동 엔진 (code.js)
 // =========================================================
 
 (function initDashboardApp() {
@@ -12,8 +12,6 @@
     "국내주식": "#6366f1",
     "해외주식": "#10b981",
     "ETF": "#f59e0b",
-    "예금": "#06b6d4",
-    "적금": "#0284c7",
     "부동산": "#eab308",
     "채권": "#3b82f6",
     "가상자산": "#ec4899",
@@ -34,7 +32,59 @@
     }
   }
 
-  // 2️⃣ 모달 제어 및 동적 필드 전환 (일반자산/대출/예적금)
+  // 📰 2️⃣ 뉴스 브리핑 불러오기 로직 추가
+  async function fetchNewsBriefing() {
+    const loadingEl = document.getElementById("briefing-loading");
+    const contentEl = document.getElementById("briefing-content");
+    const dateEl = document.getElementById("briefing-date");
+
+    if (!contentEl) return;
+
+    if (loadingEl) loadingEl.style.display = "block";
+    contentEl.hidden = true;
+
+    try {
+      // Google 뉴스 RSS -> JSON 변환
+      const targetUrl = encodeURIComponent("https://news.google.com/rss/search?q=%EC%A3%BC%EC%8B%9D+%EA%B8%88%EC%9C%B5+%EC%97%81%ED%80%80%ED%8B%B0&hl=ko&gl=KR&ceid=KR:ko");
+      const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${targetUrl}`);
+
+      if (!res.ok) throw new Error("뉴스 네트워크 응답 오류");
+
+      const data = await res.json();
+
+      if (dateEl) {
+        const now = new Date();
+        dateEl.textContent = `${now.getMonth() + 1}월 ${now.getDate()}일 ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')} 기준`;
+      }
+
+      if (data.status === "ok" && data.items && data.items.length > 0) {
+        const newsItems = data.items.slice(0, 6); // 상위 6개 뉴스
+        
+        contentEl.innerHTML = `
+          <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px;">
+            ${newsItems.map(item => `
+              <li style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
+                <a href="${item.link}" target="_blank" rel="noopener noreferrer" style="color: #f8fafc; text-decoration: none; font-size: 0.95rem; font-weight: 500; transition: color 0.2s;" onmouseover="this.style.color='#818cf8'" onmouseout="this.style.color='#f8fafc'">
+                  • ${item.title}
+                </a>
+                <span style="color: #64748b; font-size: 0.75rem; white-space: nowrap; margin-left: 12px;">${item.pubDate.substring(5, 16)}</span>
+              </li>
+            `).join("")}
+          </ul>
+        `;
+      } else {
+        contentEl.innerHTML = `<p style="color: #64748b;">불러올 수 있는 최신 뉴스가 없습니다.</p>`;
+      }
+    } catch (e) {
+      console.error("뉴스 로딩 에러:", e);
+      contentEl.innerHTML = `<p style="color: #ef4444;">뉴스를 불러오는 중에 오류가 발생했습니다.</p>`;
+    } finally {
+      if (loadingEl) loadingEl.style.display = "none";
+      contentEl.hidden = false;
+    }
+  }
+
+  // 3️⃣ 모달 제어 및 대출 필드 동적 전환
   const modal = document.getElementById("tx-modal");
   const openBtn = document.getElementById("open-tx-modal");
   const closeBtn = document.getElementById("close-tx-modal");
@@ -50,9 +100,9 @@
       form.reset();
       document.getElementById("edit-tx-id").value = "";
       document.getElementById("modal-eyebrow").textContent = "NEW RECORD";
-      document.getElementById("modal-title").textContent = "자산 / 대출 / 예적금 기록하기";
+      document.getElementById("modal-title").textContent = "자산 / 대출 기록하기";
       document.getElementById("save-btn").textContent = "기록 저장";
-      toggleCategoryFields(categorySelect.value);
+      toggleFields(categorySelect.value === "대출");
       if (dateInput) dateInput.value = new Date().toISOString().substring(0, 10);
       modal.showModal();
     };
@@ -61,62 +111,23 @@
   if (closeBtn) closeBtn.onclick = () => modal.close();
   if (cancelBtn) cancelBtn.onclick = () => modal.close();
 
-  function toggleCategoryFields(category) {
-    const isLoan = category === "대출";
-    const isSavings = category === "예금" || category === "적금";
-
+  function toggleFields(isLoan) {
     const assetFields = document.querySelectorAll(".asset-field");
     const loanFields = document.querySelectorAll(".loan-field");
-    const savingsFields = document.querySelectorAll(".savings-field");
     const typeLabel = document.getElementById("type-label");
 
-    assetFields.forEach(f => f.style.display = (!isLoan && !isSavings) ? "flex" : "none");
+    assetFields.forEach(f => f.style.display = isLoan ? "none" : "flex");
     loanFields.forEach(f => f.style.display = isLoan ? "flex" : "none");
-    savingsFields.forEach(f => f.style.display = isSavings ? "flex" : "none");
     if (typeLabel) typeLabel.style.display = isLoan ? "none" : "flex";
   }
 
   if (categorySelect) {
     categorySelect.addEventListener("change", (e) => {
-      toggleCategoryFields(e.target.value);
+      toggleFields(e.target.value === "대출");
     });
   }
 
-  // 예/적금 만기일 및 만기 수령액 계산 함수
-  function calculateSavingsDetails(startDateStr, category, amount, annualRate, months, taxTypeRate) {
-    const startDate = new Date(startDateStr);
-    const maturityDate = new Date(startDateStr);
-    maturityDate.setMonth(maturityDate.getMonth() + months);
-
-    const maturityDateStr = maturityDate.toISOString().substring(0, 10);
-    const rate = annualRate / 100;
-    let grossInterest = 0;
-    let totalPrincipal = 0;
-
-    if (category === "예금") {
-      totalPrincipal = amount;
-      grossInterest = totalPrincipal * rate * (months / 12);
-    } else if (category === "적금") {
-      totalPrincipal = amount * months;
-      grossInterest = amount * (months * (months + 1) / 2) * (rate / 12);
-    }
-
-    const taxAmount = grossInterest * (taxTypeRate / 100);
-    const netInterest = grossInterest - taxAmount;
-    const totalPayout = totalPrincipal + netInterest;
-
-    return {
-      totalPrincipal,
-      grossInterest,
-      netInterest,
-      taxAmount,
-      totalPayout,
-      maturityDateStr,
-      maturityDateObj: maturityDate
-    };
-  }
-
-  // 3️⃣ 저장 (신규 등록 및 수정 분기)
+  // 저장 (신규 등록 및 수정 분기)
   if (form) {
     form.onsubmit = (e) => {
       e.preventDefault();
@@ -124,7 +135,6 @@
       const editId = document.getElementById("edit-tx-id").value;
       const category = formData.get("category");
       const isLoan = category === "대출";
-      const isSavings = category === "예금" || category === "적금";
 
       let txData = {
         id: editId ? parseInt(editId) : Date.now(),
@@ -142,24 +152,6 @@
         txData.quantity = 1;
         txData.price = txData.loanAmount;
         txData.currentPrice = txData.loanAmount;
-      } else if (isSavings) {
-        txData.type = formData.get("type");
-        txData.depositAmount = parseFloat(formData.get("depositAmount")) || 0;
-        txData.savingsRate = parseFloat(formData.get("savingsRate")) || 0;
-        txData.savingsMonths = parseInt(formData.get("savingsMonths")) || 12;
-        txData.taxType = parseFloat(formData.get("taxType")) || 15.4;
-
-        const calc = calculateSavingsDetails(
-          txData.date, txData.category, txData.depositAmount, 
-          txData.savingsRate, txData.savingsMonths, txData.taxType
-        );
-
-        txData.quantity = txData.savingsMonths;
-        txData.price = txData.depositAmount;
-        txData.currentPrice = calc.totalPayout; // 만기 수령액
-        txData.maturityDate = calc.maturityDateStr;
-        txData.netInterest = calc.netInterest;
-        txData.totalPrincipal = calc.totalPrincipal;
       } else {
         txData.type = formData.get("type");
         txData.quantity = parseFloat(formData.get("quantity")) || 0;
@@ -180,7 +172,7 @@
     };
   }
 
-  // 삭제
+  // 거래/자산 삭제
   window.deleteTransaction = function(id) {
     if (confirm("정말 이 자산/거래 기록을 삭제하시겠습니까?")) {
       transactions = transactions.filter(t => t.id !== id);
@@ -188,14 +180,14 @@
     }
   };
 
-  // 수정 모달 호출
+  // 보유 자산 수정 모달 호출
   window.editTransaction = function(id) {
     const tx = transactions.find(t => t.id === id);
     if (!tx) return;
 
     document.getElementById("edit-tx-id").value = tx.id;
     document.getElementById("modal-eyebrow").textContent = "EDIT RECORD";
-    document.getElementById("modal-title").textContent = "자산 / 대출 / 예적금 수정하기";
+    document.getElementById("modal-title").textContent = "자산 / 대출 수정하기";
     document.getElementById("save-btn").textContent = "수정 완료";
 
     document.getElementById("tx-date").value = tx.date;
@@ -203,18 +195,13 @@
     document.getElementById("tx-name").value = tx.name;
     document.getElementById("tx-currency").value = tx.currency;
 
-    toggleCategoryFields(tx.category);
+    const isLoan = tx.category === "대출";
+    toggleFields(isLoan);
 
-    if (tx.category === "대출") {
+    if (isLoan) {
       document.getElementById("tx-loan-amount").value = tx.loanAmount || tx.price || 0;
       document.getElementById("tx-loan-rate").value = tx.interestRate || 0;
       document.getElementById("tx-loan-term").value = tx.loanTermMonths || 12;
-    } else if (tx.category === "예금" || tx.category === "적금") {
-      document.getElementById("tx-type").value = tx.type || "BUY";
-      document.getElementById("tx-deposit-amount").value = tx.depositAmount || 0;
-      document.getElementById("tx-savings-rate").value = tx.savingsRate || 0;
-      document.getElementById("tx-savings-months").value = tx.savingsMonths || 12;
-      document.getElementById("tx-tax-type").value = tx.taxType || "15.4";
     } else {
       document.getElementById("tx-type").value = tx.type || "BUY";
       document.getElementById("tx-qty").value = tx.quantity || 1;
@@ -230,7 +217,7 @@
     renderAll();
   }
 
-  // 4️⃣ 대출 원리금 균등상환 계산
+  // 4️⃣ 원리금 균등상환 계산
   function calculateLoanStatus(startDateStr, principal, annualRatePercent, totalMonths) {
     if (!principal || principal <= 0) return { currentBalance: 0, monthlyPayment: 0, passedMonths: 0 };
 
@@ -264,15 +251,12 @@
     };
   }
 
-  // 5️⃣ 포트폴리오 정산 연산 Engine (만기 예/적금 자동 현금 전환 기능 포함)
+  // 5️⃣ 포트폴리오 정산 연산 Engine
   function processPortfolio() {
     const holdingsMap = {};
     const realizedPnl = { month: { krw: 0, usd: 0 }, quarter: { krw: 0, usd: 0 }, year: { krw: 0, usd: 0 } };
 
     const now = new Date();
-    // 오늘 날짜의 00:00:00 (시간 단위 비교 오차 방지)
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth();
     const currentQuarter = Math.floor(currentMonth / 3);
@@ -282,9 +266,9 @@
     sortedTxs.forEach(tx => {
       const isUsd = tx.currency === "USD";
 
-      // 대출 처리
       if (tx.category === "대출") {
         const loanStatus = calculateLoanStatus(tx.date, tx.loanAmount, tx.interestRate, tx.loanTermMonths);
+        
         holdingsMap[`loan_${tx.id}`] = {
           id: tx.id,
           name: tx.name,
@@ -301,54 +285,6 @@
             rate: tx.interestRate
           }
         };
-        return;
-      }
-
-      // 예금/적금 처리 (★ 만기 체크 로직 적용)
-      if (tx.category === "예금" || tx.category === "적금") {
-        const calc = calculateSavingsDetails(tx.date, tx.category, tx.depositAmount, tx.savingsRate, tx.savingsMonths, tx.taxType);
-        
-        // 만기일 자정 기준 비교
-        const maturityDate = new Date(calc.maturityDateObj.getFullYear(), calc.maturityDateObj.getMonth(), calc.maturityDateObj.getDate());
-        
-        // 만기일이 오늘 포함 지났다면 보유 현금으로 이동
-        if (today >= maturityDate) {
-          const cashKey = tx.currency === "USD" ? "현금_USD" : "현금_KRW";
-          if (!holdingsMap[cashKey]) {
-            holdingsMap[cashKey] = {
-              id: "auto_cash_" + tx.currency,
-              name: "보유현금",
-              category: "현금",
-              currency: tx.currency,
-              qty: 1,
-              avgPrice: 0,
-              currentPrice: 0
-            };
-          }
-          // 만기 수령액(원금 + 세후이자)을 현금으로 더함
-          holdingsMap[cashKey].currentPrice += calc.totalPayout;
-          holdingsMap[cashKey].avgPrice += calc.totalPayout;
-        } else {
-          // 아직 만기가 되지 않은 예/적금만 보유 자산에 유지
-          holdingsMap[`savings_${tx.id}`] = {
-            id: tx.id,
-            name: tx.name,
-            category: tx.category,
-            currency: tx.currency,
-            qty: tx.savingsMonths,
-            avgPrice: tx.category === "예금" ? tx.depositAmount : tx.depositAmount * tx.savingsMonths,
-            currentPrice: calc.totalPayout, // 만기수령액
-            savingsInfo: {
-              depositAmount: tx.depositAmount,
-              rate: tx.savingsRate,
-              months: tx.savingsMonths,
-              maturityDate: calc.maturityDateStr,
-              netInterest: calc.netInterest,
-              totalPrincipal: calc.totalPrincipal,
-              totalPayout: calc.totalPayout
-            }
-          };
-        }
         return;
       }
 
@@ -412,18 +348,8 @@
 
     activeHoldings.forEach(h => {
       const isUsd = h.currency === "USD";
-      const isSavings = h.category === "예금" || h.category === "적금";
-
-      let valKrw = 0;
-      let costKrw = 0;
-
-      if (isSavings) {
-        valKrw = h.savingsInfo.totalPrincipal; // 순자산 산출 시에는 납입 원금 기준
-        costKrw = h.savingsInfo.totalPrincipal;
-      } else {
-        valKrw = isUsd ? (h.qty * h.currentPrice) * liveUsdKrwRate : h.qty * h.currentPrice;
-        costKrw = isUsd ? (h.qty * h.avgPrice) * liveUsdKrwRate : h.qty * h.avgPrice;
-      }
+      const valKrw = isUsd ? (h.qty * h.currentPrice) * liveUsdKrwRate : h.qty * h.currentPrice;
+      const costKrw = isUsd ? (h.qty * h.avgPrice) * liveUsdKrwRate : h.qty * h.avgPrice;
 
       if (h.category === "대출") {
         totalDebtKrw += valKrw;
@@ -431,7 +357,7 @@
         totalAssetKrw += valKrw;
         totalCostKrw += costKrw;
 
-        if (h.category === "현금" || isSavings) {
+        if (h.category === "현금") {
           cashValueKrw += valKrw;
         } else {
           investedValueKrw += valKrw;
@@ -459,7 +385,7 @@
     }
     if (detailEl) {
       const rate = totalCostKrw > 0 ? (totalUnrealizedProfitKrw / totalCostKrw) * 100 : 0;
-      detailEl.textContent = `투자 자산 수익률: ${rate.toFixed(2)}%`;
+      detailEl.textContent = `총 수익률: ${rate.toFixed(2)}%`;
     }
 
     const targetInput = document.getElementById("target-amount");
@@ -480,7 +406,7 @@
     }
   }
 
-  // 7️⃣ 자산 배분 차트
+  // 7️⃣ 자산 배분 도넛 차트
   function renderAllocationChart(activeHoldings) {
     const canvas = document.getElementById("allocationCanvas");
     const legendEl = document.getElementById("legend");
@@ -495,11 +421,7 @@
 
     validHoldings.forEach(h => {
       const isUsd = h.currency === "USD";
-      const isSavings = h.category === "예금" || h.category === "적금";
-      const valKrw = isSavings 
-        ? h.savingsInfo.totalPrincipal 
-        : (isUsd ? (h.qty * h.currentPrice) * liveUsdKrwRate : h.qty * h.currentPrice);
-
+      const valKrw = isUsd ? (h.qty * h.currentPrice) * liveUsdKrwRate : h.qty * h.currentPrice;
       catTotals[h.category] = (catTotals[h.category] || 0) + valKrw;
       grandTotal += valKrw;
     });
@@ -550,10 +472,10 @@
     });
   }
 
-  // 8️⃣ 전체 UI 렌더링
+  // 8️⃣ 통합 렌더링
   function renderAll() {
     const { holdingsMap } = processPortfolio();
-    const activeHoldings = Object.values(holdingsMap);
+    const activeHoldings = Object.values(holdingsMap).filter(h => h.qty > 0 && h.currentPrice >= 0);
 
     updateHeroOverview(activeHoldings);
     renderAllocationChart(activeHoldings);
@@ -566,32 +488,16 @@
       } else {
         txBody.innerHTML = [...transactions].reverse().map(t => {
           const isLoan = t.category === "대출";
-          const isSavings = t.category === "예금" || t.category === "적금";
           const symbol = t.currency === "USD" ? "$" : "₩";
-
-          let qtyText = t.quantity;
-          let priceText = t.price;
-          let totalText = t.quantity * t.price;
-
-          if (isLoan) {
-            qtyText = "1 (대출)";
-            priceText = t.loanAmount;
-            totalText = t.loanAmount;
-          } else if (isSavings) {
-            qtyText = `${t.savingsMonths}개월`;
-            priceText = t.depositAmount;
-            totalText = t.category === "예금" ? t.depositAmount : t.depositAmount * t.savingsMonths;
-          }
-
           return `
             <tr>
               <td>${t.date}</td>
-              <td><span style="color:${isLoan ? '#ef4444' : '#10b981'}; font-weight:bold;">${isLoan ? '대출실행' : (isSavings ? '신규가입' : t.type)}</span></td>
+              <td><span style="color:${isLoan ? '#ef4444' : (t.type === 'BUY' ? '#10b981' : '#ef4444')}; font-weight:bold;">${isLoan ? '대출실행' : (t.type === 'BUY' ? '매수' : '매도')}</span></td>
               <td><b>${t.name}</b></td>
               <td>${t.currency}</td>
-              <td>${typeof qtyText === 'number' ? qtyText.toLocaleString("ko-KR") : qtyText}</td>
-              <td>${symbol}${priceText.toLocaleString("ko-KR")}</td>
-              <td>${symbol}${totalText.toLocaleString("ko-KR")}</td>
+              <td>${isLoan ? '1 (대출)' : t.quantity.toLocaleString("ko-KR")}</td>
+              <td>${symbol}${(isLoan ? t.loanAmount : t.price).toLocaleString("ko-KR")}</td>
+              <td>${symbol}${(isLoan ? t.loanAmount : t.quantity * t.price).toLocaleString("ko-KR")}</td>
               <td>
                 <button onclick="editTransaction(${t.id})" style="background:none; border:none; color:#818cf8; cursor:pointer; margin-right:8px;">수정</button>
                 <button onclick="deleteTransaction(${t.id})" style="background:none; border:none; color:#ef4444; cursor:pointer;">삭제</button>
@@ -602,7 +508,7 @@
       }
     }
 
-    // 보유 자산 / 예적금 / 대출 테이블
+    // 보유 자산 / 대출 잔액 테이블
     const holdingsBody = document.getElementById("holdings-body");
     const emptyState = document.getElementById("empty-state");
 
@@ -614,10 +520,10 @@
         if (emptyState) emptyState.style.display = "none";
         holdingsBody.innerHTML = activeHoldings.map(h => {
           const isLoan = h.category === "대출";
-          const isSavings = h.category === "예금" || h.category === "적금";
           const isUsd = h.currency === "USD";
+          const totalKrw = isUsd ? (h.qty * h.currentPrice) * liveUsdKrwRate : h.qty * h.currentPrice;
+          const costKrw = isUsd ? (h.qty * h.avgPrice) * liveUsdKrwRate : h.qty * h.avgPrice;
 
-          // 대출인 경우
           if (isLoan) {
             const info = h.loanInfo;
             return `
@@ -627,7 +533,7 @@
                 <td>${info.passedMonths}/${info.totalMonths}회차</td>
                 <td>₩${Math.round(info.initialPrincipal).toLocaleString("ko-KR")}</td>
                 <td><b style="color:#ef4444;">₩${Math.round(h.currentPrice).toLocaleString("ko-KR")}</b> <small>(잔액)</small></td>
-                <td><b>-₩${Math.round(h.currentPrice).toLocaleString("ko-KR")}</b></td>
+                <td><b>-₩${Math.round(totalKrw).toLocaleString("ko-KR")}</b></td>
                 <td style="color:#cbd5e1;">월 상환액: <b style="color:#ef4444;">₩${Math.round(info.monthlyPayment).toLocaleString("ko-KR")}</b></td>
                 <td>
                   <button onclick="editTransaction(${h.id})" style="background:none; border:none; color:#818cf8; cursor:pointer; margin-right:6px;">수정</button>
@@ -637,29 +543,6 @@
             `;
           }
 
-          // 예금 / 적금인 경우 (만기 전)
-          if (isSavings) {
-            const info = h.savingsInfo;
-            return `
-              <tr style="background: rgba(6, 182, 212, 0.05);">
-                <td><b>${h.name}</b></td>
-                <td><small style="background:rgba(6, 182, 212, 0.2); color:#06b6d4; padding:2px 6px; border-radius:4px;">${h.category} (${info.rate}%)</small></td>
-                <td>만기: <b>${info.maturityDate}</b></td>
-                <td>₩${Math.round(info.totalPrincipal).toLocaleString("ko-KR")}</td>
-                <td>₩${Math.round(info.depositAmount).toLocaleString("ko-KR")} <small>(${h.category === '예금' ? '예치금' : '월적립'})</small></td>
-                <td><b style="color:#06b6d4;">₩${Math.round(info.totalPayout).toLocaleString("ko-KR")}</b></td>
-                <td style="color:#10b981;">+₩${Math.round(info.netInterest).toLocaleString("ko-KR")} <small>(세후이자)</small></td>
-                <td>
-                  <button onclick="editTransaction(${h.id})" style="background:none; border:none; color:#818cf8; cursor:pointer; margin-right:6px;">수정</button>
-                  <button onclick="deleteTransaction(${h.id})" style="background:none; border:none; color:#ef4444; cursor:pointer;">삭제</button>
-                </td>
-              </tr>
-            `;
-          }
-
-          // 주식 및 기타 일반 자산 / 현금(만기 해지 환급금 포함)인 경우
-          const totalKrw = isUsd ? (h.qty * h.currentPrice) * liveUsdKrwRate : h.qty * h.currentPrice;
-          const costKrw = isUsd ? (h.qty * h.avgPrice) * liveUsdKrwRate : h.qty * h.avgPrice;
           const profitKrw = totalKrw - costKrw;
           const profitRateKrw = costKrw > 0 ? (profitKrw / costKrw) * 100 : 0;
           const colorKrw = profitKrw >= 0 ? "#10b981" : "#ef4444";
@@ -674,10 +557,8 @@
               <td><b>₩${Math.round(totalKrw).toLocaleString("ko-KR")}</b></td>
               <td style="color:${colorKrw}"><b>${profitRateKrw.toFixed(2)}%</b><br/><small>₩${Math.round(profitKrw).toLocaleString("ko-KR")}</small></td>
               <td>
-                ${typeof h.id === 'number' ? `
-                  <button onclick="editTransaction(${h.id})" style="background:none; border:none; color:#818cf8; cursor:pointer; margin-right:6px;">수정</button>
-                  <button onclick="deleteTransaction(${h.id})" style="background:none; border:none; color:#ef4444; cursor:pointer;">삭제</button>
-                ` : '-'}
+                <button onclick="editTransaction(${h.id})" style="background:none; border:none; color:#818cf8; cursor:pointer; margin-right:6px;">수정</button>
+                <button onclick="deleteTransaction(${h.id})" style="background:none; border:none; color:#ef4444; cursor:pointer;">삭제</button>
               </td>
             </tr>
           `;
@@ -686,9 +567,15 @@
     }
   }
 
-  // 초기화
+  // 초기화 및 뉴스 새로고침 이벤트 바인딩
   window.addEventListener("load", async () => {
+    const refreshBtn = document.getElementById("refresh-briefing");
+    if (refreshBtn) {
+      refreshBtn.onclick = fetchNewsBriefing;
+    }
+
     await fetchLiveRate();
+    await fetchNewsBriefing(); // 페이지 진입 시 뉴스 자동 로딩
     renderAll();
   });
 })();
