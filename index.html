@@ -181,30 +181,32 @@
         </section>
 
         <!-- 5. 매수 / 매도 / 대출 이력 기록 섹션 -->
-        <section id="transactions" style="margin-top: 40px;">
-          <div class="section-heading">
-            <div><p class="eyebrow">TRANSACTION HISTORY</p><h2>거래 및 대출 이력</h2></div>
-          </div>
-          <div class="card table-card">
-            <div class="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>일자</th>
-                    <th>구분</th>
-                    <th>자산명</th>
-                    <th>통화</th>
-                    <th>수량</th>
-                    <th>단가/원금</th>
-                    <th>총액</th>
-                    <th>작업</th>
-                  </tr>
-                </thead>
-                <tbody id="tx-history-body"></tbody>
-              </table>
-            </div>
-          </div>
-        </section>
+<section id="transactions" style="margin-top: 40px;">
+  <div class="section-heading">
+    <div><p class="eyebrow">TRANSACTION HISTORY</p><h2>거래 및 대출 이력</h2></div>
+  </div>
+  <div class="card table-card">
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>일자</th>
+            <th>구분</th>
+            <th>자산명</th>
+            <th>통화</th>
+            <th>수량</th>
+            <th>단가/원금</th>
+            <th>총액</th>
+            <th>작업</th>
+          </tr>
+        </thead>
+        <tbody id="tx-history-body"></tbody>
+      </table>
+    </div>
+    <!-- 💡 [신규 추가] 페이지네이션 컨트롤러 -->
+    <div id="tx-pagination" style="display: flex; justify-content: center; align-items: center; gap: 8px; padding: 16px; border-top: 1px solid rgba(255, 255, 255, 0.05);"></div>
+  </div>
+</section>
 
         <!-- 6. 투자 시뮬레이터 -->
         <section id="simulators" style="margin-top: 40px;">
