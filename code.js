@@ -111,7 +111,8 @@
       netInterest,
       taxAmount,
       totalPayout,
-      maturityDateStr
+      maturityDateStr,
+      maturityDateObj: maturityDate
     };
   }
 
@@ -263,12 +264,15 @@
     };
   }
 
-  // 5️⃣ 포트폴리오 정산 연산 Engine
+  // 5️⃣ 포트폴리오 정산 연산 Engine (만기 예/적금 자동 현금 전환 기능 포함)
   function processPortfolio() {
     const holdingsMap = {};
     const realizedPnl = { month: { krw: 0, usd: 0 }, quarter: { krw: 0, usd: 0 }, year: { krw: 0, usd: 0 } };
 
     const now = new Date();
+    // 오늘 날짜의 00:00:00 (시간 단위 비교 오차 방지)
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth();
     const currentQuarter = Math.floor(currentMonth / 3);
@@ -300,28 +304,51 @@
         return;
       }
 
-      // 예금/적금 처리
+      // 예금/적금 처리 (★ 만기 체크 로직 적용)
       if (tx.category === "예금" || tx.category === "적금") {
         const calc = calculateSavingsDetails(tx.date, tx.category, tx.depositAmount, tx.savingsRate, tx.savingsMonths, tx.taxType);
         
-        holdingsMap[`savings_${tx.id}`] = {
-          id: tx.id,
-          name: tx.name,
-          category: tx.category,
-          currency: tx.currency,
-          qty: tx.savingsMonths,
-          avgPrice: tx.category === "예금" ? tx.depositAmount : tx.depositAmount * tx.savingsMonths,
-          currentPrice: calc.totalPayout, // 만기수령액
-          savingsInfo: {
-            depositAmount: tx.depositAmount,
-            rate: tx.savingsRate,
-            months: tx.savingsMonths,
-            maturityDate: calc.maturityDateStr,
-            netInterest: calc.netInterest,
-            totalPrincipal: calc.totalPrincipal,
-            totalPayout: calc.totalPayout
+        // 만기일 자정 기준 비교
+        const maturityDate = new Date(calc.maturityDateObj.getFullYear(), calc.maturityDateObj.getMonth(), calc.maturityDateObj.getDate());
+        
+        // 만기일이 오늘 포함 지났다면 보유 현금으로 이동
+        if (today >= maturityDate) {
+          const cashKey = tx.currency === "USD" ? "현금_USD" : "현금_KRW";
+          if (!holdingsMap[cashKey]) {
+            holdingsMap[cashKey] = {
+              id: "auto_cash_" + tx.currency,
+              name: "보유현금",
+              category: "현금",
+              currency: tx.currency,
+              qty: 1,
+              avgPrice: 0,
+              currentPrice: 0
+            };
           }
-        };
+          // 만기 수령액(원금 + 세후이자)을 현금으로 더함
+          holdingsMap[cashKey].currentPrice += calc.totalPayout;
+          holdingsMap[cashKey].avgPrice += calc.totalPayout;
+        } else {
+          // 아직 만기가 되지 않은 예/적금만 보유 자산에 유지
+          holdingsMap[`savings_${tx.id}`] = {
+            id: tx.id,
+            name: tx.name,
+            category: tx.category,
+            currency: tx.currency,
+            qty: tx.savingsMonths,
+            avgPrice: tx.category === "예금" ? tx.depositAmount : tx.depositAmount * tx.savingsMonths,
+            currentPrice: calc.totalPayout, // 만기수령액
+            savingsInfo: {
+              depositAmount: tx.depositAmount,
+              rate: tx.savingsRate,
+              months: tx.savingsMonths,
+              maturityDate: calc.maturityDateStr,
+              netInterest: calc.netInterest,
+              totalPrincipal: calc.totalPrincipal,
+              totalPayout: calc.totalPayout
+            }
+          };
+        }
         return;
       }
 
@@ -610,7 +637,7 @@
             `;
           }
 
-          // 예금 / 적금인 경우
+          // 예금 / 적금인 경우 (만기 전)
           if (isSavings) {
             const info = h.savingsInfo;
             return `
@@ -630,7 +657,7 @@
             `;
           }
 
-          // 주식 및 기타 일반 자산인 경우
+          // 주식 및 기타 일반 자산 / 현금(만기 해지 환급금 포함)인 경우
           const totalKrw = isUsd ? (h.qty * h.currentPrice) * liveUsdKrwRate : h.qty * h.currentPrice;
           const costKrw = isUsd ? (h.qty * h.avgPrice) * liveUsdKrwRate : h.qty * h.avgPrice;
           const profitKrw = totalKrw - costKrw;
@@ -647,8 +674,10 @@
               <td><b>₩${Math.round(totalKrw).toLocaleString("ko-KR")}</b></td>
               <td style="color:${colorKrw}"><b>${profitRateKrw.toFixed(2)}%</b><br/><small>₩${Math.round(profitKrw).toLocaleString("ko-KR")}</small></td>
               <td>
-                <button onclick="editTransaction(${h.id})" style="background:none; border:none; color:#818cf8; cursor:pointer; margin-right:6px;">수정</button>
-                <button onclick="deleteTransaction(${h.id})" style="background:none; border:none; color:#ef4444; cursor:pointer;">삭제</button>
+                ${typeof h.id === 'number' ? `
+                  <button onclick="editTransaction(${h.id})" style="background:none; border:none; color:#818cf8; cursor:pointer; margin-right:6px;">수정</button>
+                  <button onclick="deleteTransaction(${h.id})" style="background:none; border:none; color:#ef4444; cursor:pointer;">삭제</button>
+                ` : '-'}
               </td>
             </tr>
           `;
