@@ -406,3 +406,19 @@ table th,
   padding: 10px 16px;
   border-radius: 8px;
 }
+
+.form-grid label,
+.form-grid .form-field {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  font-size: 0.85rem !important;
+  color: #94a3b8 !important;
+}
+
+/* 구분 라벨이나 스팬 텍스트가 줄바꿈되지 않도록 방지 */
+.form-grid label span,
+#type-label {
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+}
