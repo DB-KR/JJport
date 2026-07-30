@@ -407,6 +407,9 @@ table th,
   border-radius: 8px;
 }
 
+/* =========================================================
+   🔧 모달 입력 폼 레이아웃 보완 (줄바꿈 방지 & 대출 필드 정렬)
+   ========================================================= */
 .form-grid label,
 .form-grid .form-field {
   display: flex !important;
@@ -416,7 +419,6 @@ table th,
   color: #94a3b8 !important;
 }
 
-/* 구분 라벨이나 스팬 텍스트가 줄바꿈되지 않도록 방지 */
 .form-grid label span,
 #type-label {
   white-space: nowrap !important;
