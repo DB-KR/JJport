@@ -3,28 +3,39 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JJPort - 부부 자산 관리 대시보드</title>
+  <title>JJPort - 부부 자산 통합 대시보드</title>
   
   <!-- CSS 스타일시트 연결 -->
   <link rel="stylesheet" href="style.css">
   
-  <!-- External Libraries (Chart.js & Supabase SDK) -->
+  <!-- External Libraries -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    body {
+      background-color: #0f172a !important;
+      color: #f8fafc;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+  </style>
 </head>
 <body>
-  <div class="dashboard-container" style="max-width: 1000px; margin: 0 auto; padding: 20px; font-family: sans-serif;">
+  <div class="dashboard-container" style="max-width: 1100px; margin: 0 auto; padding: 20px;">
     
-    <!-- 🟢 상단 헤더 (타이틀 + 부부 공용 이메일/비밀번호 로그인 UI) -->
+    <!-- 🟢 상단 헤더 (타이틀 + 부부 공용 로그인) -->
     <header class="dashboard-header" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid #334155; flex-wrap: wrap; gap: 10px;">
-      <h1 style="margin: 0; font-size: 1.5rem; color: #f8fafc;">💰 JJPort</h1>
+      <h1 style="margin: 0; font-size: 1.5rem; color: #f8fafc; display: flex; align-items: center; gap: 8px;">
+        💰 JJPort <span style="font-size: 0.8rem; background: #334155; padding: 3px 8px; border-radius: 12px; color: #818cf8;">부부통장</span>
+      </h1>
       
-      <!-- 부부 공용 로그인 영역 -->
       <div class="user-auth-area" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
         <span id="user-email" style="color: #94a3b8; font-size: 0.85rem; margin-right: 4px;"></span>
         
-        <input type="email" id="login-email" placeholder="이메일" style="width: 120px; padding: 6px 8px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px; font-size: 0.8rem;">
-        <input type="password" id="login-password" placeholder="비밀번호" style="width: 100px; padding: 6px 8px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px; font-size: 0.8rem;">
+        <input type="email" id="login-email" placeholder="이메일" style="width: 120px; padding: 6px 8px; background: #1e293b; border: 1px solid #334155; color: white; border-radius: 6px; font-size: 0.8rem;">
+        <input type="password" id="login-password" placeholder="비밀번호" style="width: 100px; padding: 6px 8px; background: #1e293b; border: 1px solid #334155; color: white; border-radius: 6px; font-size: 0.8rem;">
         
         <button id="login-btn" style="padding: 6px 12px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600;">
           로그인
@@ -35,59 +46,71 @@
       </div>
     </header>
 
-    <!-- 🟢 요약 카드 영역 -->
-    <section class="summary-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 20px;">
-      <div class="card" style="background: #1e293b; padding: 20px; border-radius: 10px;">
-        <h3 style="margin: 0 0 10px 0; font-size: 0.9rem; color: #94a3b8;">순자산 (Net Worth)</h3>
-        <p id="net-worth" class="amount" style="margin: 0; font-size: 1.5rem; font-weight: bold; color: #f8fafc;">₩0</p>
+    <!-- 🟢 주요 요약 카드 4종 -->
+    <section class="summary-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-top: 20px;">
+      <div class="card" style="background: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;">
+        <h3 style="margin: 0 0 8px 0; font-size: 0.85rem; color: #94a3b8;">순자산 (Net Worth)</h3>
+        <p id="net-worth" style="margin: 0; font-size: 1.6rem; font-weight: bold; color: #f8fafc;">₩0</p>
       </div>
-      <div class="card" style="background: #1e293b; padding: 20px; border-radius: 10px;">
-        <h3 style="margin: 0 0 10px 0; font-size: 0.9rem; color: #94a3b8;">투자가치 (Invested)</h3>
-        <p id="invested-value" class="amount" style="margin: 0; font-size: 1.5rem; font-weight: bold; color: #10b981;">₩0</p>
+      <div class="card" style="background: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;">
+        <h3 style="margin: 0 0 8px 0; font-size: 0.85rem; color: #94a3b8;">총 투자가치</h3>
+        <p id="invested-value" style="margin: 0; font-size: 1.6rem; font-weight: bold; color: #10b981;">₩0</p>
       </div>
-      <div class="card" style="background: #1e293b; padding: 20px; border-radius: 10px;">
-        <h3 style="margin: 0 0 10px 0; font-size: 0.9rem; color: #94a3b8;">현금성 자산</h3>
-        <p id="cash-value" class="amount" style="margin: 0; font-size: 1.5rem; font-weight: bold; color: #3b82f6;">₩0</p>
+      <div class="card" style="background: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;">
+        <h3 style="margin: 0 0 8px 0; font-size: 0.85rem; color: #94a3b8;">예상 연간 배당금</h3>
+        <p id="annual-dividend" style="margin: 0; font-size: 1.6rem; font-weight: bold; color: #f59e0b;">₩0</p>
+      </div>
+      <div class="card" style="background: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;">
+        <h3 style="margin: 0 0 8px 0; font-size: 0.85rem; color: #94a3b8;">월 총 대출 상환액</h3>
+        <p id="monthly-loan" style="margin: 0; font-size: 1.6rem; font-weight: bold; color: #ef4444;">₩0</p>
       </div>
     </section>
 
-    <!-- 🟢 30대 자산 상위 % 게이지 바 -->
-    <section class="rank-section" style="margin-top: 25px; background: #1e293b; padding: 20px; border-radius: 10px;">
+    <!-- 🟢 30대 자산 백분위 게이지 -->
+    <section class="rank-section" style="margin-top: 20px; background: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;">
       <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h3 style="margin: 0; color: #f8fafc;">30대 순자산 상위 백분위</h3>
+        <h3 style="margin: 0; color: #f8fafc; font-size: 1.05rem;">🏆 대한민국 30대 순자산 백분위</h3>
         <span id="rank-percent" style="font-size: 1.4rem; font-weight: bold; color: #6366f1;">—</span>
       </div>
-      <div class="meter-bg" style="width: 100%; height: 12px; background: #334155; border-radius: 6px; margin: 12px 0; overflow: hidden;">
+      <div class="meter-bg" style="width: 100%; height: 12px; background: #0f172a; border-radius: 6px; margin: 12px 0; overflow: hidden;">
         <div id="rank-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #6366f1, #10b981); transition: width 0.5s ease;"></div>
       </div>
-      <p id="rank-caption" style="margin: 0; color: #94a3b8; font-size: 0.85rem;">로그인 후 자산을 추가하면 비교해 드려요</p>
+      <p id="rank-caption" style="margin: 0; color: #94a3b8; font-size: 0.85rem;">로그인 후 자산을 추가하면 위치를 확인할 수 있습니다.</p>
     </section>
 
-    <!-- 🟢 자산 및 대출 테이블 -->
-    <section class="holdings-section" style="margin-top: 30px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <h2 style="color: #f8fafc; margin: 0;">보유 자산 및 대출 내역</h2>
-        <button id="open-tx-modal" style="padding: 8px 16px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+    <!-- 🟢 포트폴리오 비중 차트 영역 -->
+    <section class="chart-section" style="margin-top: 20px; background: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;">
+      <h3 style="margin: 0 0 15px 0; color: #f8fafc; font-size: 1.05rem;">🎨 자산 구성 비율</h3>
+      <div style="max-width: 320px; margin: 0 auto; height: 260px; position: relative;">
+        <canvas id="portfolioChart"></canvas>
+      </div>
+    </section>
+
+    <!-- 🟢 자산 및 대출 리스트 테이블 -->
+    <section class="holdings-section" style="margin-top: 25px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+        <h2 style="color: #f8fafc; margin: 0; font-size: 1.2rem;">📂 보유 자산 및 대출 상세</h2>
+        <button id="open-tx-modal" style="padding: 9px 18px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem;">
           + 자산/대출 추가
         </button>
       </div>
 
-      <div class="table-wrapper" style="overflow-x: auto;">
-        <table style="width: 100%; border-collapse: collapse; text-align: left; color: #f8fafc;">
+      <div class="table-wrapper" style="overflow-x: auto; background: #1e293b; border-radius: 12px; border: 1px solid #334155;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left; color: #f8fafc; font-size: 0.9rem;">
           <thead>
-            <tr style="border-bottom: 2px solid #334155; color: #94a3b8;">
-              <th style="padding: 10px;">자산/대출명</th>
-              <th style="padding: 10px;">분류</th>
-              <th style="padding: 10px;">수량 / 회차</th>
-              <th style="padding: 10px;">매수/원금</th>
-              <th style="padding: 10px;">현재가/잔액</th>
-              <th style="padding: 10px;">평가금액</th>
-              <th style="padding: 10px;">수익률 / 월상환</th>
-              <th style="padding: 10px;">관리</th>
+            <tr style="border-bottom: 2px solid #334155; color: #94a3b8; background: #0f172a;">
+              <th style="padding: 12px;">자산/대출명</th>
+              <th style="padding: 12px;">분류</th>
+              <th style="padding: 12px;">수량 / 회차</th>
+              <th style="padding: 12px;">매수/원금</th>
+              <th style="padding: 12px;">현재가/잔액</th>
+              <th style="padding: 12px;">평가금액</th>
+              <th style="padding: 12px;">수익률 / 월상환</th>
+              <th style="padding: 12px; text-align: center;">관리</th>
             </tr>
           </thead>
           <tbody id="holdings-body">
-            <!-- code.js 동적 생성 -->
+            <!-- code.js 에서 동적 렌더링 -->
           </tbody>
         </table>
       </div>
@@ -96,7 +119,7 @@
   </div>
 
   <!-- 🟢 자산/대출 입력 모달 -->
-  <dialog id="tx-modal" style="background: #1e293b; color: #f8fafc; border: 1px solid #334155; border-radius: 12px; padding: 25px; width: 90%; max-width: 500px;">
+  <dialog id="tx-modal" style="background: #1e293b; color: #f8fafc; border: 1px solid #334155; border-radius: 12px; padding: 25px; width: 90%; max-width: 480px;">
     <form id="tx-form" method="dialog">
       <h3 style="margin-top: 0; color: #f8fafc;">자산 / 대출 정보 입력</h3>
       <input type="hidden" id="edit-tx-id" name="editId">
@@ -104,12 +127,12 @@
       <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 15px;">
         <label>
           날짜:
-          <input type="date" id="tx-date" name="date" required style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 4px;">
+          <input type="date" id="tx-date" name="date" required style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px;">
         </label>
 
         <label>
           카테고리:
-          <select id="tx-category" name="category" style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 4px;">
+          <select id="tx-category" name="category" style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px;">
             <option value="국내주식">국내주식</option>
             <option value="해외주식">해외주식</option>
             <option value="ETF">ETF</option>
@@ -122,70 +145,70 @@
         </label>
 
         <label>
-          자산/대출 이름:
-          <input type="text" id="tx-name" name="name" placeholder="예: 삼성전자, 아파트 담보대출" required style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 4px;">
+          이름:
+          <input type="text" id="tx-name" name="name" placeholder="예: 삼성전자, 아파트 담보대출" required style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px;">
         </label>
 
         <label>
           통화:
-          <select id="tx-currency" name="currency" style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 4px;">
+          <select id="tx-currency" name="currency" style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px;">
             <option value="KRW">KRW (₩)</option>
             <option value="USD">USD ($)</option>
           </select>
         </label>
 
-        <!-- 자산 필드 -->
+        <!-- 일반 자산 입력창 -->
         <div class="asset-field" style="display: flex; flex-direction: column; gap: 12px;">
           <label id="type-label">
             구분:
-            <select id="tx-type" name="type" style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 4px;">
+            <select id="tx-type" name="type" style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px;">
               <option value="BUY">매수 (BUY)</option>
               <option value="SELL">매도 (SELL)</option>
             </select>
           </label>
           <label>
             수량:
-            <input type="number" step="any" id="tx-qty" name="quantity" value="1" style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 4px;">
+            <input type="number" step="any" id="tx-qty" name="quantity" value="1" style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px;">
           </label>
           <label>
-            매수가:
-            <input type="number" step="any" id="tx-price" name="price" value="0" style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 4px;">
+            매수가 (단가):
+            <input type="number" step="any" id="tx-price" name="price" value="0" style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px;">
           </label>
           <label>
-            현재가:
-            <input type="number" step="any" id="tx-curr-price" name="currentPrice" value="0" style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 4px;">
+            현재가 (단가):
+            <input type="number" step="any" id="tx-curr-price" name="currentPrice" value="0" style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px;">
           </label>
           <label>
             배당률 (%):
-            <input type="number" step="any" id="tx-div-rate" name="dividendRate" value="0" style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 4px;">
+            <input type="number" step="any" id="tx-div-rate" name="dividendRate" value="0" style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px;">
           </label>
         </div>
 
-        <!-- 대출 필드 -->
+        <!-- 대출 전용 입력창 -->
         <div class="loan-field" style="display: none; flex-direction: column; gap: 12px;">
           <label>
             대출 원금:
-            <input type="number" step="any" id="tx-loan-amount" name="loanAmount" value="0" style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 4px;">
+            <input type="number" step="any" id="tx-loan-amount" name="loanAmount" value="0" style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px;">
           </label>
           <label>
             대출 금리 (%):
-            <input type="number" step="any" id="tx-loan-rate" name="interestRate" value="0" style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 4px;">
+            <input type="number" step="any" id="tx-loan-rate" name="interestRate" value="0" style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px;">
           </label>
           <label>
             대출 기간 (개월):
-            <input type="number" id="tx-loan-term" name="loanTermMonths" value="12" style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 4px;">
+            <input type="number" id="tx-loan-term" name="loanTermMonths" value="12" style="width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px;">
           </label>
         </div>
       </div>
 
       <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
-        <button type="button" id="cancel-tx-modal" style="padding: 8px 16px; background: #475569; color: white; border: none; border-radius: 4px; cursor: pointer;">취소</button>
-        <button type="submit" style="padding: 8px 16px; background: #6366f1; color: white; border: none; border-radius: 4px; cursor: pointer;">저장</button>
+        <button type="button" id="cancel-tx-modal" style="padding: 8px 16px; background: #475569; color: white; border: none; border-radius: 6px; cursor: pointer;">취소</button>
+        <button type="submit" style="padding: 8px 16px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">저장</button>
       </div>
     </form>
   </dialog>
 
-  <!-- JS 로직 연결 -->
+  <!-- JavaScript 연동 -->
   <script src="code.js"></script>
 </body>
 </html>
