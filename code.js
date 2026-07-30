@@ -62,20 +62,22 @@
   if (cancelBtn) cancelBtn.onclick = () => modal.close();
 
   function toggleFields(isLoan) {
-    const assetFields = document.querySelectorAll(".asset-field");
-    const loanFields = document.querySelectorAll(".loan-field");
-    const typeLabel = document.getElementById("type-label");
+    function toggleFields(isLoan) {
+      const assetFields = document.querySelectorAll(".asset-field");
+      const loanFields = document.querySelectorAll(".loan-field");
+      const typeLabel = document.getElementById("type-label");
+      
+      assetFields.forEach(f => f.style.display = isLoan ? "none" : "flex");
+      loanFields.forEach(f => f.style.display = isLoan ? "flex" : "none");
+      if (typeLabel) typeLabel.style.display = isLoan ? "none" : "flex";
+}
 
-    assetFields.forEach(f => f.style.display = isLoan ? "none" : "flex");
-    loanFields.forEach(f => f.style.display = isLoan ? "flex" : "none");
-    if (typeLabel) typeLabel.style.display = isLoan ? "none" : "flex";
-  }
-
-  if (categorySelect) {
-    categorySelect.addEventListener("change", (e) => {
-      toggleFields(e.target.value === "대출");
-    });
-  }
+if (categorySelect) {
+  categorySelect.addEventListener("change", (e) => {
+    // e.target.value에 '대출'이 포함되어 있으면 대출 필드로 전환
+    toggleFields(e.target.value.includes("대출"));
+  });
+}
 
   // 저장 (신규 등록 및 수정 분기)
   if (form) {
