@@ -6,6 +6,8 @@
   let transactions = JSON.parse(localStorage.getItem("portfolio_txs") || "[]");
   let liveUsdKrwRate = 1400; // 기본 환율
   let allocationChartInstance = null;
+  let divChartInstance = null;
+  let spChartInstance = null;
 
   // 자산 분류별 테마 색상
   const categoryColors = {
@@ -105,7 +107,7 @@
         txData.quantity = parseFloat(formData.get("quantity")) || 0;
         txData.price = parseFloat(formData.get("price")) || 0;
         txData.currentPrice = parseFloat(formData.get("currentPrice")) || 0;
-        txData.dividendRate = parseFloat(formData.get("dividendRate")) || 0; // 💡 연 배당/이자율 수집
+        txData.dividendRate = parseFloat(formData.get("dividendRate")) || 0;
       }
 
       if (editId) {
@@ -156,7 +158,7 @@
       document.getElementById("tx-qty").value = tx.quantity || 1;
       document.getElementById("tx-price").value = tx.price || 0;
       document.getElementById("tx-curr-price").value = tx.currentPrice || 0;
-      document.getElementById("tx-div-rate").value = tx.dividendRate || 0; // 💡 수정 모달에 기존 배당률 설정
+      document.getElementById("tx-div-rate").value = tx.dividendRate || 0;
     }
 
     modal.showModal();
@@ -290,7 +292,7 @@
     return { holdingsMap, realizedPnl };
   }
 
-  // 💡 [신규 추가] 패시브 인컴(배당/이자) 계산 함수
+  // 5️⃣ 패시브 인컴(배당/이자) 연산
   function calculatePassiveIncome(activeHoldings) {
     let annualIncomeKrw = 0;
     let totalInvestedValueKrw = 0;
@@ -322,7 +324,144 @@
     if (yieldEl) yieldEl.textContent = `${portfolioYield.toFixed(2)}%`;
   }
 
-  // 5️⃣ 메인 요약 대시보드
+  // 6️⃣ 시뮬레이터 로직 (배당 & S&P500)
+  function parseVal(id) {
+    const el = document.getElementById(id);
+    if (!el) return 0;
+    return parseFloat(el.value.replace(/,/g, "")) || 0;
+  }
+
+  function initSimulators() {
+    // 콤마 자동 포맷팅
+    const formatInputs = ["dividend-initial", "dividend-monthly", "sp-initial", "sp-monthly", "sp-exchange-rate", "target-amount"];
+    formatInputs.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener("input", (e) => {
+          let val = e.target.value.replace(/[^0-9]/g, "");
+          if (val) e.target.value = parseInt(val, 10).toLocaleString("ko-KR");
+          else e.target.value = "";
+          updateSimulators();
+        });
+      }
+    });
+
+    const otherInputs = ["dividend-yield", "dividend-years", "dividend-reinvest", "sp-return", "sp-years"];
+    otherInputs.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener("input", updateSimulators);
+    });
+
+    updateSimulators();
+  }
+
+  function updateSimulators() {
+    updateDividendSim();
+    updateSpSim();
+  }
+
+  // 배당 시뮬레이터 연산 및 차트
+  function updateDividendSim() {
+    const init = parseVal("dividend-initial");
+    const monthly = parseVal("dividend-monthly");
+    const rate = parseVal("dividend-yield") / 100;
+    const years = parseVal("dividend-years");
+    const reinvest = document.getElementById("dividend-reinvest")?.checked ?? true;
+
+    let total = init;
+    let totalCumDiv = 0;
+    const labels = ["0년"];
+    const totalData = [init];
+
+    for (let y = 1; y <= years; y++) {
+      let annualDiv = 0;
+      for (let m = 1; m <= 12; m++) {
+        total += monthly;
+        const mDiv = total * (rate / 12);
+        annualDiv += mDiv;
+        if (reinvest) total += mDiv;
+      }
+      totalCumDiv += annualDiv;
+      labels.push(`${y}년`);
+      totalData.push(Math.round(total));
+    }
+
+    const totalEl = document.getElementById("dividend-total");
+    const incomeEl = document.getElementById("dividend-income");
+    if (totalEl) totalEl.textContent = "₩" + Math.round(total).toLocaleString("ko-KR");
+    if (incomeEl) incomeEl.textContent = "₩" + Math.round(totalCumDiv).toLocaleString("ko-KR");
+
+    renderSimChart("divCanvas", divChartInstance, labels, totalData, "#55dfb2", (inst) => divChartInstance = inst);
+  }
+
+  // S&P500 시뮬레이터 연산 및 차트
+  function updateSpSim() {
+    const initUsd = parseVal("sp-initial");
+    const monthlyUsd = parseVal("sp-monthly");
+    const fx = parseVal("sp-exchange-rate") || 1400;
+    const rate = parseVal("sp-return") / 100;
+    const years = parseVal("sp-years");
+
+    let totalUsd = initUsd;
+    let totalContribUsd = initUsd;
+    const labels = ["0년"];
+    const totalData = [Math.round(initUsd * fx)];
+
+    for (let y = 1; y <= years; y++) {
+      for (let m = 1; m <= 12; m++) {
+        totalUsd += monthlyUsd;
+        totalContribUsd += monthlyUsd;
+        totalUsd *= (1 + rate / 12);
+      }
+      labels.push(`${y}년`);
+      totalData.push(Math.round(totalUsd * fx));
+    }
+
+    const totalEl = document.getElementById("sp-total");
+    const contribEl = document.getElementById("sp-contribution");
+    if (totalEl) totalEl.textContent = "₩" + Math.round(totalUsd * fx).toLocaleString("ko-KR");
+    if (contribEl) contribEl.textContent = "₩" + Math.round(totalContribUsd * fx).toLocaleString("ko-KR");
+
+    renderSimChart("spCanvas", spChartInstance, labels, totalData, "#818cf8", (inst) => spChartInstance = inst);
+  }
+
+  // 시뮬레이터 라인 차트 공통 함수
+  function renderSimChart(canvasId, instance, labels, data, color, setInst) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || typeof Chart === "undefined") return;
+
+    if (instance) instance.destroy();
+
+    const ctx = canvas.getContext("2d");
+    const newInst = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: [{
+          label: "예상 자산",
+          data: data,
+          borderColor: color,
+          backgroundColor: color + "22",
+          fill: true,
+          tension: 0.3,
+          pointRadius: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: "#64748b" } },
+          y: { grid: { color: "rgba(255,255,255,0.05)" }, ticks: { color: "#64748b" } }
+        }
+      }
+    });
+
+    setInst(newInst);
+  }
+
+  // 7️⃣ 메인 요약 대시보드
   function updateHeroOverview(activeHoldings) {
     let totalAssetKrw = 0;
     let totalDebtKrw = 0;
@@ -390,7 +529,7 @@
     }
   }
 
-  // 6️⃣ 자산 배분 도넛 차트
+  // 8️⃣ 자산 배분 도넛 차트
   function renderAllocationChart(activeHoldings) {
     const canvas = document.getElementById("allocationCanvas");
     const legendEl = document.getElementById("legend");
@@ -456,14 +595,14 @@
     });
   }
 
-  // 7️⃣ 통합 렌더링
+  // 9️⃣ 전체 렌더링
   function renderAll() {
     const { holdingsMap, realizedPnl } = processPortfolio();
     const activeHoldings = Object.values(holdingsMap).filter(h => h.qty > 0 && h.currentPrice >= 0);
 
     updateHeroOverview(activeHoldings);
     renderAllocationChart(activeHoldings);
-    calculatePassiveIncome(activeHoldings); // 💡 배당 수입 실시간 계산 연동
+    calculatePassiveIncome(activeHoldings);
 
     // 내역 테이블
     const txBody = document.getElementById("tx-history-body");
@@ -556,5 +695,6 @@
   window.addEventListener("load", async () => {
     await fetchLiveRate();
     renderAll();
+    initSimulators(); // 💡 시뮬레이터 연산 및 차트 렌더링 시작
   });
 })();
